@@ -83,7 +83,7 @@ yourself are fully editable and deletable.
 
 **Prerequisites**
 
-- [Node.js](https://nodejs.org/) (LTS) and npm
+- [Node.js](https://nodejs.org/) (LTS) and [Yarn](https://classic.yarnpkg.com/) (v1)
 - [Rust toolchain](https://www.rust-lang.org/tools/install)
 - [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your platform
 
@@ -92,21 +92,21 @@ yourself are fully editable and deletable.
 ```bash
 git clone https://github.com/khawpunkp/Eous-Modify.git
 cd Eous-Modify
-npm install
-npm run tauri dev
+yarn install
+yarn tauri dev
 ```
 
 **Build**
 
 ```bash
-npm run tauri build
+yarn tauri build
 ```
 
 **Other scripts**
 
 ```bash
-npm run build      # type-check the frontend and bundle it
-npm run format     # Prettier
+yarn build      # type-check the frontend and bundle it
+yarn format     # Prettier
 ```
 
 Backend tests live with the Rust source:
