@@ -24,7 +24,7 @@ onMounted(async () => {
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
    await updaterStore.check();
-   //  if (Boolean(updaterStore.update)) showUpdateModal.value = true;
+   if (Boolean(updaterStore.update)) showUpdateModal.value = true;
 });
 
 async function chooseFolder() {

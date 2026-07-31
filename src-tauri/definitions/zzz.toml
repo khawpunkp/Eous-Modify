@@ -62,6 +62,6 @@ entities = [
     { name = "Velina", slug = "velina", details = '{"rank": "S", "attribute": "Wind", "speciality": "Anomaly"}', base_image = "velina_base.jpg", aliases = ["velina"] },
     { name = "Norma", slug = "norma", details = '{"rank": "S", "attribute": "Fire", "speciality": "Stun"}', base_image = "norma_base.jpg", aliases = ["norma"] },
     { name = "Pyrois", slug = "pyrois", details = '{"rank": "S", "attribute": "Ether", "speciality": "Attack"}', base_image = "pyrois_base.jpg", aliases = ["pyrois"] },
-    { name = "Remielle", slug = "remielle", details = '{"rank": "S", "attribute": "Lumiflux", "speciality": "Anomaly"}', base_image = "remielle_base.jpg", aliases = ["remielle"] },
-    { name = "Sigrid", slug = "sigrid", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack"}', base_image = "sigrid_base.jpg", aliases = ["sigrid"] }
+    { name = "Remielle", slug = "remielle", details = '{"rank": "S", "attribute": "Lumiflux", "speciality": "Anomaly"}', base_image = "", aliases = ["remielle"] },
+    { name = "Sigrid", slug = "sigrid", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack"}', base_image = "", aliases = ["sigrid"] }
 ]
