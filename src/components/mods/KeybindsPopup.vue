@@ -27,11 +27,10 @@ onMounted(async () => {
 <template>
    <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/60">
       <div
-         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-5 overflow-y-auto rounded-lg border border-white/10 p-6"
+         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-4 overflow-y-auto rounded-lg border border-white/10 p-6"
       >
+         <VueTypography variant="TitleB" as="h2">Keybinds</VueTypography>
          <div class="flex flex-col gap-2">
-            <VueTypography variant="TitleB" as="h2">Keybinds</VueTypography>
-
             <template v-if="errorMessage">
                <VueTypography variant="CaptionR" as="p" class="text-destructive">
                   {{ errorMessage }}

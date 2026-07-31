@@ -102,28 +102,34 @@ function handleSubmit() {
 <template>
    <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/60">
       <form
-         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-5 overflow-y-auto rounded-lg border border-white/10 p-6"
+         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-4 overflow-y-auto rounded-lg border border-white/10 p-6"
          @submit.prevent="handleSubmit"
       >
-         <div class="flex flex-col gap-2">
-            <VueTypography variant="TitleB" as="h2">Edit Mod</VueTypography>
+         <VueTypography variant="TitleB" as="h2">Edit Mod</VueTypography>
+         <div class="flex flex-col items-center gap-4">
+            <img
+               :src="previewSrc ?? '/images/placeholder.jpg'"
+               alt=""
+               class="aspect-video w-full rounded-lg border border-white/10 object-cover"
+            />
+            <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
+               Choose New Image
+            </VueButton>
 
-            <div class="flex flex-col items-center gap-4">
-               <img
-                  :src="previewSrc ?? '/images/placeholder.jpg'"
-                  alt=""
-                  class="aspect-video w-full rounded-lg border border-white/10 object-cover"
-               />
-               <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
-                  Choose New Image
-               </VueButton>
-            </div>
-         </div>
+            <VueInput
+               id="mod-name"
+               v-model="form.name"
+               label="Name"
+               required
+               container-class="w-full"
+            />
 
-         <div class="flex flex-col gap-4">
-            <VueInput id="mod-name" v-model="form.name" label="Name" required />
-
-            <VueInput id="mod-author" v-model="form.author" label="Author" />
+            <VueInput
+               id="mod-author"
+               v-model="form.author"
+               label="Author"
+               container-class="w-full"
+            />
 
             <VueSelect
                v-model="selectedTarget"
@@ -133,7 +139,7 @@ function handleSubmit() {
                searchable
             />
 
-            <div class="flex items-center justify-end gap-3">
+            <div class="flex w-full items-center justify-end gap-3">
                <VueButton type="button" variant="outlined" @click="emit('close')" class="min-w-32">
                   Cancel
                </VueButton>

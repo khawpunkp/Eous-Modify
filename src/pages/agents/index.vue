@@ -160,7 +160,7 @@ const visibleAgents = computed(() => {
 
 <template>
    <div class="flex h-full flex-col gap-6">
-      <div class="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-4">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="mr-auto flex items-center gap-3">
             <PhUsers :size="32" weight="fill" />
             Agents
@@ -173,7 +173,7 @@ const visibleAgents = computed(() => {
       </div>
 
       <div class="flex flex-col flex-wrap items-end gap-6 border-b border-white/10 pb-6">
-         <div class="flex flex-wrap items-center gap-5">
+         <div class="flex flex-wrap items-center gap-4">
             <div class="flex flex-wrap items-center gap-2">
                <button
                   v-for="rank in RANKS"
@@ -226,7 +226,7 @@ const visibleAgents = computed(() => {
                </button>
             </div>
          </div>
-         <div class="flex w-full items-center justify-end gap-5">
+         <div class="flex w-full items-center justify-end gap-4">
             <VueInput
                v-model="search"
                container-class="w-full max-w-75"

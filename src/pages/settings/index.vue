@@ -96,8 +96,8 @@ async function checkForUpdates() {
          </VueTypography>
       </div>
 
-      <div class="flex flex-col gap-5">
-         <div class="bg-card flex w-full flex-col gap-5 rounded-lg border border-white/10 p-6">
+      <div class="flex flex-col gap-4">
+         <div class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6">
             <VueTypography variant="TitleB" as="h2">Paths Configuration</VueTypography>
 
             <div class="grid grid-cols-12 items-center border-b border-white/5 pb-5">

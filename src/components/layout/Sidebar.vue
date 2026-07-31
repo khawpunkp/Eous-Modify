@@ -163,7 +163,7 @@ async function runScan() {
 </script>
 
 <template>
-   <aside class="bg-card flex h-full max-w-65 shrink-0 grow flex-col gap-8 overflow-y-auto p-5">
+   <aside class="bg-card flex h-full max-w-65 shrink-0 grow flex-col gap-8 overflow-y-auto p-4">
       <div class="flex items-center justify-center">
          <img src="/images/logo.webp" class="w-6/10" />
       </div>
@@ -267,7 +267,7 @@ async function runScan() {
          class="fixed inset-0 z-100 flex items-center justify-center bg-black/60"
       >
          <div
-            class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-5 overflow-y-auto rounded-lg border border-white/10 p-6"
+            class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-4 overflow-y-auto rounded-lg border border-white/10 p-6"
          >
             <div class="flex flex-col gap-4">
                <VueTypography variant="TitleB" as="h2">Scan Result</VueTypography>

@@ -268,21 +268,41 @@ pub fn update_mod_category(
     get_mod(conn, base_mods_path, mod_id)
 }
 
-/// The `.ini` files directly inside whichever path variant currently exists on disk for this mod —
-/// used by keybinds parsing (and, later, skin-toggle memory in Phase 7).
+/// Every `.ini` inside whichever path variant currently exists on disk for this mod, nested ones
+/// included, in a stable order — used by keybinds parsing (and, later, skin-toggle memory in Phase 7).
+///
+/// Recurses because plenty of mods keep their `.ini` in a subfolder rather than at the top level, and
+/// a single-level `read_dir` finds nothing at all for those. Sorted because `read_dir` order is
+/// unspecified, and these feed the keybind list the user reads.
 pub fn find_mod_ini_paths(base_mods_path: &Path, folder_name: &str) -> Vec<PathBuf> {
     let Some(mod_dir) = current_mod_path(base_mods_path, folder_name) else {
         return Vec::new();
     };
-    let Ok(entries) = fs::read_dir(&mod_dir) else {
-        return Vec::new();
-    };
-    entries
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
-        .filter(|e| e.path().extension().map(|ext| ext.eq_ignore_ascii_case("ini")).unwrap_or(false))
-        .map(|e| e.path())
-        .collect()
+
+    let mut ini_paths = Vec::new();
+    let mut pending = vec![mod_dir];
+
+    while let Some(dir) = pending.pop() {
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let Ok(file_type) = entry.file_type() else {
+                continue;
+            };
+            let path = entry.path();
+            if file_type.is_dir() {
+                pending.push(path);
+            } else if file_type.is_file()
+                && path.extension().map(|ext| ext.eq_ignore_ascii_case("ini")).unwrap_or(false)
+            {
+                ini_paths.push(path);
+            }
+        }
+    }
+
+    ini_paths.sort();
+    ini_paths
 }
 
 pub fn delete_mod(conn: &Connection, base_mods_path: &Path, mod_id: i64) -> Result<(), String> {
