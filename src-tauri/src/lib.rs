@@ -5,6 +5,7 @@ mod mod_groups;
 mod models;
 mod mods;
 mod scanner;
+mod xxmi_config;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -29,6 +30,7 @@ pub fn run() {
             let mut conn = db::init_db(&app_data_dir).expect("failed to initialize database");
             db::seed::sync_definitions(&mut conn, &app.handle())
                 .expect("failed to sync built-in definitions");
+            commands::reload::reapply_background_keys_on_startup(&conn);
             app.manage(DbState(Mutex::new(conn)));
             Ok(())
         })
@@ -56,6 +58,7 @@ pub fn run() {
             commands::mods::get_mod_keybinds,
             commands::launcher::launch_game,
             commands::reload::reload_xxmi,
+            commands::reload::set_xxmi_background_keys,
             commands::mod_groups::list_mod_groups,
             commands::mod_groups::create_mod_group,
             commands::mod_groups::add_mod_to_group,

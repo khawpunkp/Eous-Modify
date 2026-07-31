@@ -7,7 +7,7 @@ import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
-import { AUTO_RELOAD_KEY } from '../../utils/reload';
+import { AUTO_RELOAD_KEY, setXxmiBackgroundKeys } from '../../utils/reload';
 import { useUpdaterStore } from '../../stores/updater';
 import UpdateModal from '../../components/UpdateModal.vue';
 
@@ -31,8 +31,22 @@ onMounted(async () => {
 });
 
 const autoReload = ref(false);
+const autoReloadError = ref<string | null>(null);
 
+/**
+ * Editing d3dx.ini is what makes the reload actually land, so a failure there must leave the switch
+ * off: an "Enabled" switch over a feature that can't work is the bug this whole thing exists to fix.
+ * Turning it off is honoured either way — the user asked for off, and a d3dx.ini we couldn't revert
+ * is a separate problem to report, not a reason to stay on.
+ */
 async function setAutoReload(enabled: boolean) {
+   autoReloadError.value = null;
+   try {
+      await setXxmiBackgroundKeys(enabled);
+   } catch (e) {
+      autoReloadError.value = String(e);
+      if (enabled) return;
+   }
    autoReload.value = enabled;
    await settingsStore.set(AUTO_RELOAD_KEY, String(enabled));
 }
@@ -133,10 +147,10 @@ async function checkForUpdates() {
                      Reload mods in-game
                   </VueTypography>
                   <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
-                     Only works while the game is the focused window
+                     Sends F10 after a toggle so XXMI reloads without restarting the game.
                      <br />
-                     if this app is in front, the keypress is skipped, so press F10 yourself in that
-                     case.
+                     Sets check_foreground_window in your XXMI d3dx.ini, which is what lets the
+                     keypress work while this app is in front.
                   </VueTypography>
                </div>
                <VueSwitch
@@ -144,6 +158,11 @@ async function checkForUpdates() {
                   :title="autoReload ? 'Enabled' : 'Disabled'"
                   @update:model-value="setAutoReload"
                />
+            </div>
+            <div v-if="autoReloadError" class="mt-2">
+               <VueTypography variant="CaptionR" as="p" class="text-destructive">
+                  {{ autoReloadError }}
+               </VueTypography>
             </div>
          </div>
 

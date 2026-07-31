@@ -34,7 +34,12 @@ working with 3DMigoto exactly as before and nothing is locked into this app.
   filters on the agents list. Your sort choice is remembered per page.
 - **🖼️ Previews** — mod preview images are detected automatically, and can be replaced per mod.
   Agents and groups take custom images too.
-- **🚀 Quick Launch** — launch the game straight from the sidebar.
+- **⚡ Reload in-game** — optional: after a toggle, F10 is sent so XXMI reloads its mods without a
+  game restart. Enabling it sets `check_foreground_window = 0` in your XXMI `d3dx.ini`, which is what
+  lets that keypress register while this app is the window in front; turning it off puts the old
+  value back. It's re-applied at startup, since XXMI rewrites `d3dx.ini` when it updates.
+- **🚀 Quick Launch** — launch the game straight from the sidebar, with an admin prompt when the game
+  needs one.
 - **🔄 Built-in updater** — new versions are picked up from GitHub Releases (Tauri's updater).
 
 ---
@@ -53,11 +58,11 @@ Updates arrive through the built-in updater.
 
 ## 🚀 Usage
 
-**Scanning.** *Scan Mods Folder* walks your mods directory, adds anything new, files each mod under
+**Scanning.** _Scan Mods Folder_ walks your mods directory, adds anything new, files each mod under
 the agent or category it deduced, re-checks previously unmatched mods, and drops database entries for
 mods no longer on disk. Safe to re-run any time — it reports what it did when it finishes.
 
-**Importing.** *Import Mod* in the sidebar takes a `.zip`, `.7z` or `.rar`. The archive is inspected
+**Importing.** _Import Mod_ in the sidebar takes a `.zip`, `.7z` or `.rar`. The archive is inspected
 first, so the destination, name and author come pre-filled from what could be deduced; adjust
 anything and confirm.
 
@@ -69,7 +74,14 @@ you can edit a mod to assign it properly.
 preview image, or move it to a different agent/category), view its keybinds, open its folder, or
 delete it — deleting removes the folder from disk.
 
-**Grouping.** *Select Mods to Group* on any mod page, tick two or more, then name the group and give
+**Reloading in-game.** Enabling and disabling only renames folders on disk, so the running game keeps
+showing what it loaded at startup until 3DMigoto re-reads the Mods folder — which it does on F10. Turn
+on **Reload mods in-game** in Settings and that keypress is sent for you after every toggle. It needs
+one change to your XXMI `d3dx.ini` (`check_foreground_window = 0`), because 3DMigoto ignores hotkeys
+while its own window isn't focused and yours will be; the app writes it when you switch the feature on
+and restores the previous value when you switch it off. Leave it off and just press F10 yourself.
+
+**Grouping.** _Select Mods to Group_ on any mod page, tick two or more, then name the group and give
 it an image. The group card toggles all members at once; open it later to rename it, change the
 image, or add and remove members. Removing a group down to one mod disbands it.
 
@@ -121,15 +133,15 @@ Releasing is documented in [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
 
 ## 💻 Tech stack
 
-| | |
-|---|---|
-| Shell | Tauri v2 |
-| Backend | Rust, SQLite via `rusqlite` |
-| Frontend | Vue 3 (`<script setup>` + TypeScript), Vite |
-| Routing / state | vue-router (file-based routes), Pinia |
-| Styling | Tailwind CSS v4 |
-| Components | in-house primitives built on Reka UI + CVA |
-| Icons | Phosphor |
+|                 |                                             |
+| --------------- | ------------------------------------------- |
+| Shell           | Tauri v2                                    |
+| Backend         | Rust, SQLite via `rusqlite`                 |
+| Frontend        | Vue 3 (`<script setup>` + TypeScript), Vite |
+| Routing / state | vue-router (file-based routes), Pinia       |
+| Styling         | Tailwind CSS v4                             |
+| Components      | in-house primitives built on Reka UI + CVA  |
+| Icons           | Phosphor                                    |
 
 The built-in agent and category data lives in [`src-tauri/definitions/zzz.toml`](src-tauri/definitions/zzz.toml),
 including the aliases used for deduction — add an alias there and rescanning will pick up mods named
