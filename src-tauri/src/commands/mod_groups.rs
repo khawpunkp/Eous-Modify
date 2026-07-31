@@ -45,7 +45,7 @@ pub fn remove_mod_from_group(
     group_id: i64,
     mod_id: i64,
     state: State<DbState>,
-) -> Result<Option<ModGroupWithMembers>, String> {
+) -> Result<ModGroupWithMembers, String> {
     let mods_path = get_mods_folder(&state)?;
     let mut conn = state.0.lock().map_err(|e| e.to_string())?;
     mod_groups::remove_member(&mut conn, &mods_path, group_id, mod_id)

@@ -4,6 +4,8 @@ export interface Agent {
    slug: string;
    details: string | null;
    baseImage: string | null;
+   /** True when baseImage came from a user pick rather than the bundled definitions. */
+   hasCustomImage: boolean;
    isBuiltin: boolean;
    aliases: string[];
 }

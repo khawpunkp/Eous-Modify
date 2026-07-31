@@ -63,17 +63,7 @@ pub fn slugify(input: &str) -> String {
 /// split into an agents path and a categories path since the new schema separates the two.
 pub fn sync_definitions(conn: &mut Connection, app_handle: &AppHandle) -> Result<(), String> {
     let current_version = app_handle.package_info().version.to_string();
-    let stored_version: Option<String> = conn
-        .query_row(
-            "SELECT value FROM settings WHERE key = ?1",
-            params![SETTINGS_KEY_APP_VERSION],
-            |row| row.get(0),
-        )
-        .ok();
 
-    if stored_version.as_deref() == Some(current_version.as_str()) {
-        return Ok(());
-    }
 
     let resource_path = app_handle
         .path()

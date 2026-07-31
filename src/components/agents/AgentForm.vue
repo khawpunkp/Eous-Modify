@@ -130,6 +130,25 @@ function removeAlias(alias: string) {
    if (index !== -1) aliases.splice(index, 1);
 }
 
+// Clearing the image clears the stored override, so the seeded one comes back. Only offered for a
+// built-in that actually has an override — either already saved (hasCustomImage) or picked just now.
+// `baseImage` here is the resolved image, so it's non-null for a plain seeded agent too and can't
+// stand in for "has an override" on its own.
+const canResetImage = computed(() => {
+   const agent = props.initialAgent;
+   if (agent?.isBuiltin !== true) return false;
+   return agent.hasCustomImage || baseImage.value !== agent.baseImage;
+});
+
+/** True once reset is pending: the preview falls back to the placeholder until the save lands. */
+const willRestoreDefaultImage = computed(
+   () => props.initialAgent?.isBuiltin === true && baseImage.value === null,
+);
+
+function useDefaultImage() {
+   baseImage.value = null;
+}
+
 async function pickImage() {
    const path = await open({
       multiple: false,
@@ -211,15 +230,29 @@ function handleSubmit() {
                class="bg-foreground size-60 rounded-lg border border-white/10 object-cover"
                :class="{ 'p-2': !baseImage }"
             />
-            <VueButton
-               v-if="canEditDetails"
-               type="button"
-               variant="outlined"
-               size="sm"
-               @click="pickImage"
-            >
-               Choose Image
+            <!-- The image is editable on built-in agents too: it's stored separately from the
+                 seeded one, so definition re-sync can't overwrite a user pick. -->
+            <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
+               {{ baseImage ? 'Change Image' : 'Choose Image' }}
             </VueButton>
+            <VueButton
+               v-if="canResetImage"
+               type="button"
+               variant="ghost"
+               color="gray"
+               size="sm"
+               @click="useDefaultImage"
+            >
+               Use default image
+            </VueButton>
+            <VueTypography
+               v-if="willRestoreDefaultImage"
+               variant="CaptionR"
+               as="p"
+               class="text-muted-foreground text-center"
+            >
+               Saving restores the bundled image.
+            </VueTypography>
          </div>
          <div class="flex flex-1 flex-col gap-4">
             <VueInput v-if="canEditDetails" id="agent-name" v-model="name" label="Name" required />

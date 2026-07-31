@@ -7,7 +7,10 @@ pub struct AgentWithAliases {
     pub name: String,
     pub slug: String,
     pub details: Option<String>,
+    /// Already resolved: the custom image if one is set, otherwise the seeded one.
     pub base_image: Option<String>,
+    /// Whether `base_image` came from a user pick — drives the "use default" affordance.
+    pub has_custom_image: bool,
     pub is_builtin: bool,
     pub aliases: Vec<String>,
 }

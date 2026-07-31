@@ -179,35 +179,21 @@ pub fn add_member(
     get_group(conn, base_mods_path, group_id)
 }
 
-/// Removes one mod from its group. If the group would drop to <=1 member, the whole group is
-/// disbanded instead (a "group" of one mod isn't meaningfully a group) — returns `None` in that case.
+/// Removes one mod from its group, leaving the group in place even if only one member remains.
+/// Disbanding is an explicit action (`delete_group`), never a side effect of a removal.
 pub fn remove_member(
     conn: &mut Connection,
     base_mods_path: &Path,
     group_id: i64,
     mod_id: i64,
-) -> Result<Option<ModGroupWithMembers>, String> {
+) -> Result<ModGroupWithMembers, String> {
     conn.execute(
         "DELETE FROM mod_group_members WHERE group_id = ?1 AND mod_id = ?2",
         params![group_id, mod_id],
     )
     .map_err(|e| e.to_string())?;
 
-    let remaining: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM mod_group_members WHERE group_id = ?1",
-            params![group_id],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
-
-    if remaining <= 1 {
-        conn.execute("DELETE FROM mod_groups WHERE id = ?1", params![group_id])
-            .map_err(|e| e.to_string())?;
-        Ok(None)
-    } else {
-        Ok(Some(get_group(conn, base_mods_path, group_id)?))
-    }
+    get_group(conn, base_mods_path, group_id)
 }
 
 /// All-on-unless-all-on: if every member is currently enabled, disable all; otherwise enable all.
@@ -338,30 +324,36 @@ mod tests {
         fs::remove_dir_all(&base).ok();
     }
 
+    /// Removal is only ever removal: the group survives even at a single member, and disbanding is
+    /// left to the explicit Ungroup action. (This replaced an earlier auto-disband-at-one rule.)
     #[test]
-    fn remove_member_auto_deletes_group_when_down_to_one() {
+    fn remove_member_leaves_the_group_intact_even_at_one_member() {
         let (mut conn, base) = setup_test_db_and_dir();
         let ids = mod_ids(&conn);
 
         let group = create_group(&mut conn, &base, "Trio", None, &ids).unwrap();
         assert_eq!(group.members.len(), 3);
 
-        let after_first_removal = remove_member(&mut conn, &base, group.id, ids[0])
-            .expect("remove should succeed")
-            .expect("group should still exist with 2 members");
-        assert_eq!(after_first_removal.members.len(), 2);
+        let after_first = remove_member(&mut conn, &base, group.id, ids[0]).expect("remove should succeed");
+        assert_eq!(after_first.members.len(), 2);
 
-        let after_second_removal = remove_member(&mut conn, &base, group.id, ids[1]).expect("remove should succeed");
-        assert!(after_second_removal.is_none(), "group should auto-delete once down to 1 member");
+        let after_second = remove_member(&mut conn, &base, group.id, ids[1]).expect("remove should succeed");
+        assert_eq!(after_second.members.len(), 1, "a one-member group must persist, not auto-disband");
 
-        let remaining_membership: i64 = conn
+        let still_there: i64 = conn
+            .query_row("SELECT COUNT(*) FROM mod_groups WHERE id = ?1", params![group.id], |row| row.get(0))
+            .unwrap();
+        assert_eq!(still_there, 1, "the group row itself must survive");
+
+        // And the survivor is still a member, so the group can be topped back up.
+        let members: i64 = conn
             .query_row(
                 "SELECT COUNT(*) FROM mod_group_members WHERE group_id = ?1",
                 params![group.id],
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(remaining_membership, 0, "the last member's own row should be cleaned up too");
+        assert_eq!(members, 1);
 
         fs::remove_dir_all(&base).ok();
     }

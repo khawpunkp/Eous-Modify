@@ -1,3 +1,4 @@
+import { markRaw } from 'vue';
 import { defineStore } from 'pinia';
 import { check, type Update } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
@@ -18,7 +19,13 @@ export const useUpdaterStore = defineStore('updater', {
          this.errorMessage = null;
          try {
             if (this.update) await this.update.close();
-            this.update = await check();
+            const found = await check();
+            // `Update` is a class instance with #private fields. Pinia state is reactive, so storing
+            // it bare wraps it in a Proxy — and reading a #private field through a Proxy throws
+            // "Cannot read private member from an object whose class did not declare it", which broke
+            // both downloadAndInstall() and close(). markRaw keeps the instance unproxied; the
+            // `update` property itself is still reactive, so the UI still reacts to it being set.
+            this.update = found ? markRaw(found) : null;
          } catch (e) {
             this.errorMessage = String(e);
          } finally {

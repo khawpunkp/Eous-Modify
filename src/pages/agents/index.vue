@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
 import { PhUsers, PhMagnifyingGlass, PhUserPlus } from '@phosphor-icons/vue';
 import AgentCard from '../../components/agents/AgentCard.vue';
@@ -55,26 +56,41 @@ const isLoading = ref(true);
 
 const router = useRouter();
 
+async function loadAgentsAndCounts() {
+   await agentsStore.fetchAll();
+   const allMods = await invoke<Mod[]>('list_mods', {
+      agentId: null,
+      categoryId: null,
+      categoryItemId: null,
+   });
+   const counts = new Map<number, { total: number; enabled: number }>();
+   for (const mod of allMods) {
+      if (mod.agentId === null) continue;
+      const entry = counts.get(mod.agentId) ?? { total: 0, enabled: 0 };
+      entry.total += 1;
+      if (mod.isEnabled) entry.enabled += 1;
+      counts.set(mod.agentId, entry);
+   }
+   modCounts.value = counts;
+}
+
+// A scan runs from the Sidebar, so this page has no idea its counts went stale. Listening for the
+// same scan-complete event the Sidebar uses keeps them fresh without coupling the two components.
+let unlistenScan: UnlistenFn | null = null;
+
 onMounted(async () => {
    try {
-      await agentsStore.fetchAll();
-      const allMods = await invoke<Mod[]>('list_mods', {
-         agentId: null,
-         categoryId: null,
-         categoryItemId: null,
-      });
-      const counts = new Map<number, { total: number; enabled: number }>();
-      for (const mod of allMods) {
-         if (mod.agentId === null) continue;
-         const entry = counts.get(mod.agentId) ?? { total: 0, enabled: 0 };
-         entry.total += 1;
-         if (mod.isEnabled) entry.enabled += 1;
-         counts.set(mod.agentId, entry);
-      }
-      modCounts.value = counts;
+      await loadAgentsAndCounts();
    } finally {
       isLoading.value = false;
    }
+   unlistenScan = await listen('scan-complete', () => {
+      loadAgentsAndCounts();
+   });
+});
+
+onUnmounted(() => {
+   unlistenScan?.();
 });
 
 watch(sortOption, (value) => localStorage.setItem(SORT_STORAGE_KEY, value));

@@ -32,9 +32,8 @@ const baseImage = ref<string | null>(props.group?.baseImage ?? null);
 const isSaving = ref(false);
 const errorMessage = ref<string | null>(null);
 
-// Member add/remove hit the backend immediately (each is its own command, and removing down to
-// 1 member auto-disbands the group server-side), so they can't be deferred to Save like
-// name/image are. `members` tracks the live server state as those calls land.
+// Member add/remove hit the backend immediately — each is its own command — so they can't be
+// deferred to Save the way name/image are. `members` tracks the live server state as they land.
 const members = ref([...(props.group?.members ?? [])]);
 const pendingModId = ref<string>('');
 
@@ -74,12 +73,6 @@ async function removeMod(modId: number) {
    try {
       const updated = await modGroupsStore.removeMember(props.group.id, modId);
       emit('saved');
-      // A null result means the backend auto-disbanded the group (it would have dropped to a
-      // single member) — there's nothing left to edit, so close instead of showing a stale form.
-      if (!updated) {
-         emit('close');
-         return;
-      }
       members.value = [...updated.members];
    } catch (e) {
       errorMessage.value = String(e);
@@ -148,9 +141,6 @@ async function handleSubmit() {
                   </button>
                </li>
             </ul>
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               Removing down to a single mod disbands the group.
-            </VueTypography>
          </div>
 
          <div v-if="isEditing && addableMods.length > 0" class="mb-4 flex items-end gap-2">

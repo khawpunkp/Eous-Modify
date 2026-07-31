@@ -21,16 +21,19 @@ fn validated_slug(name: &str) -> Result<String, String> {
 }
 
 fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases> {
-    let (name, slug, details, base_image, is_builtin): (
+    // A user pick wins over the seeded image; sync only ever writes base_image, so COALESCE here is
+    // what makes a custom image survive definition re-sync.
+    let (name, slug, details, base_image, has_custom_image, is_builtin): (
         String,
         String,
         Option<String>,
         Option<String>,
+        bool,
         i64,
     ) = conn.query_row(
-        "SELECT name, slug, details, base_image, is_builtin FROM agents WHERE id = ?1",
+        "SELECT name, slug, details, COALESCE(custom_image, base_image), custom_image IS NOT NULL,          is_builtin FROM agents WHERE id = ?1",
         params![id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
     )?;
 
     let mut stmt = conn.prepare("SELECT alias FROM agent_aliases WHERE agent_id = ?1 ORDER BY alias")?;
@@ -44,6 +47,7 @@ fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases
         slug,
         details,
         base_image,
+        has_custom_image,
         is_builtin: is_builtin != 0,
         aliases,
     })
@@ -118,14 +122,22 @@ pub fn update_agent(
     // by the version-gated seed re-sync, so accepting edits to them would silently lose the change
     // on the next update. Aliases are the one field sync leaves alone (additive-only), so those
     // still apply below.
+    // The image is user-owned for every agent, built-in included: it lands in custom_image, which
+    // definition re-sync never touches. Passing None is how "use default" clears the override.
+    tx.execute(
+        "UPDATE agents SET custom_image = ?1 WHERE id = ?2",
+        params![input.base_image, id],
+    )
+    .map_err(|e| e.to_string())?;
+
     if is_builtin == 0 {
         // Validate only on the path that actually writes the name — a built-in's name comes from
         // zzz.toml and is never blank, and its alias-only save shouldn't be blocked by whatever
         // the (disabled) name field happened to submit.
         validated_slug(&input.name)?;
         tx.execute(
-            "UPDATE agents SET name = ?1, details = ?2, base_image = ?3 WHERE id = ?4",
-            params![input.name, input.details, input.base_image, id],
+            "UPDATE agents SET name = ?1, details = ?2 WHERE id = ?3",
+            params![input.name, input.details, id],
         )
         .map_err(|e| e.to_string())?;
     }

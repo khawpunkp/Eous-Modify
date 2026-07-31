@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS agents (
     slug        TEXT UNIQUE NOT NULL,
     details     TEXT,
     base_image  TEXT,
+    -- A user-picked image. Kept separate from base_image so definition re-sync (which always
+    -- rewrites base_image) can't clobber it; reads COALESCE the two, so NULL means "use the seeded
+    -- image". Clearing it is how "use default" works.
+    custom_image TEXT,
     is_builtin  INTEGER NOT NULL DEFAULT 0
 );
 
