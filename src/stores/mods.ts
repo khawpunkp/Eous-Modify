@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
-import { maybeReloadXxmi } from '../utils/reload';
 import type { Mod, ModGroup, ModInput } from '../types';
 
 export const useModsStore = defineStore('mods', {
@@ -52,11 +51,12 @@ export const useModsStore = defineStore('mods', {
          this.mods = this.mods.filter((m) => m.id !== modId);
          return updated;
       },
+      // No reload call here: the backend has to send it itself, immediately after writing the mod's
+      // persisted variables back, or 3DMigoto can overwrite them before it reads them.
       async toggle(modId: number) {
          const isEnabled = await invoke<boolean>('toggle_mod_enabled', { modId });
          const mod = this.mods.find((m) => m.id === modId);
          if (mod) mod.isEnabled = isEnabled;
-         await maybeReloadXxmi();
          return isEnabled;
       },
       async update(modId: number, input: ModInput) {

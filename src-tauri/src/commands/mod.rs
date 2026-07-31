@@ -7,3 +7,4 @@ pub mod mods;
 pub mod reload;
 pub mod scanner;
 pub mod settings;
+pub mod toggle;

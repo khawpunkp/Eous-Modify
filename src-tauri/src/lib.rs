@@ -58,7 +58,6 @@ pub fn run() {
             commands::mods::open_mod_folder,
             commands::mods::get_mod_keybinds,
             commands::launcher::launch_game,
-            commands::reload::reload_xxmi,
             commands::reload::set_xxmi_background_keys,
             commands::mod_groups::list_mod_groups,
             commands::mod_groups::create_mod_group,

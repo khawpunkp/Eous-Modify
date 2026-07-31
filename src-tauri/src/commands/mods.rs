@@ -4,10 +4,10 @@ use rusqlite::params;
 use tauri::{AppHandle, State};
 use tauri_plugin_opener::OpenerExt;
 
+use crate::commands::toggle;
 use crate::keybinds;
 use crate::models::{KeybindInfo, ModInput, ModWithState};
 use crate::mods;
-use crate::persisted_vars;
 use crate::DbState;
 
 fn get_mods_folder(state: &State<DbState>) -> Result<PathBuf, String> {
@@ -37,66 +37,21 @@ pub fn list_uncategorized_mods(state: State<DbState>) -> Result<Vec<ModWithState
     mods::list_uncategorized_mods(&conn, &mods_path)
 }
 
-/// Flips a mod on or off, preserving the in-game toggle choices it holds.
+/// Flips a mod on or off, preserving the in-game toggle choices it holds and reloading XXMI.
 ///
-/// The order here is the whole point, and it is easy to get wrong:
-///
-/// *Disabling* asks 3DMigoto to flush first, because the variables the user just changed in-game live
-/// in its memory — `d3dx_user.ini` still holds the previous values until a reload or game exit, so
-/// reading the file before flushing would snapshot stale state. We then snapshot, then rename. The
-/// caller's reload afterwards is what makes 3DMigoto drop the now-unrecognised keys, which is fine
-/// because they are saved by then.
-///
-/// *Enabling* renames first so the mod's ini is back at the path its keys are derived from, then
-/// writes the values back, so the caller's reload finds them and applies them.
+/// The ordering that makes this correct lives in [`crate::commands::toggle`].
 #[tauri::command]
 pub fn toggle_mod_enabled(mod_id: i64, state: State<DbState>) -> Result<bool, String> {
     let mods_path = get_mods_folder(&state)?;
 
-    let (folder_name, auto_reload, game_exe) = {
+    let flip = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        let folder_name: String = conn
-            .query_row("SELECT folder_name FROM mods WHERE id = ?1", params![mod_id], |row| {
-                row.get(0)
-            })
-            .map_err(|e| e.to_string())?;
-        let auto_reload = crate::commands::reload::auto_reload_enabled(&conn);
-        let game_exe = crate::commands::reload::game_executable_from(&conn)?;
-        (folder_name, auto_reload, game_exe)
+        toggle::Flip::resolve(&conn, &mods_path, mod_id)?
     };
 
-    let was_enabled = mods::is_mod_enabled(&mods_path, &folder_name).unwrap_or(false);
-
-    // Snapshot before the rename, while the keys still match the enabled path.
-    let saved = if was_enabled {
-        // Only ask for a flush if the user opted into us sending keypresses at all. Without one the
-        // snapshot is whatever 3DMigoto last wrote, which is still better than losing everything.
-        if auto_reload {
-            crate::commands::reload::flush_persisted_vars(&mods_path, game_exe.as_deref());
-        }
-        persisted_vars::snapshot(&mods_path, &folder_name)
-    } else {
-        Vec::new()
-    };
-
-    let is_enabled = mods::toggle_mod(&mods_path, &folder_name)?;
-
-    if was_enabled {
-        let conn = state.0.lock().map_err(|e| e.to_string())?;
-        persisted_vars::store(&conn, mod_id, &saved)?;
-    } else {
-        let stored = {
-            let conn = state.0.lock().map_err(|e| e.to_string())?;
-            persisted_vars::load(&conn, mod_id)?
-        };
-        // Never fail the toggle over this: the rename already succeeded, and the mod works — it just
-        // comes back with default toggles.
-        if let Err(e) = persisted_vars::restore(&mods_path, &stored) {
-            eprintln!("[toggle] could not restore persisted variables for mod {mod_id}: {e}");
-        }
-    }
-
-    Ok(is_enabled)
+    let now_enabled = !flip.was_enabled;
+    toggle::run(&state, &mods_path, &[flip])?;
+    Ok(now_enabled)
 }
 
 #[tauri::command]

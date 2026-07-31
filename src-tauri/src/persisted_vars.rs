@@ -327,6 +327,84 @@ mod tests {
         assert_eq!(merge(USER_INI, &[]), USER_INI);
     }
 
+    /// TEMPORARY — machine-specific diagnostic, delete after running.
+    #[test]
+    fn scratch_dump_live_db() {
+        let db = std::path::PathBuf::from(std::env::var("APPDATA").unwrap())
+            .join("com.eousmodify.modmanager")
+            .join("eous-modify.db");
+        if !db.exists() {
+            eprintln!("skipped: no live db");
+            return;
+        }
+
+        let conn = rusqlite::Connection::open_with_flags(
+            &db,
+            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
+        )
+        .unwrap();
+
+        eprintln!("--- settings ---");
+        let mut s = conn.prepare("SELECT key, value FROM settings ORDER BY key").unwrap();
+        let rows = s
+            .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
+            .unwrap();
+        for row in rows {
+            let (k, v) = row.unwrap();
+            eprintln!("  {k} = {v}");
+        }
+
+        let table_exists: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='mod_persisted_vars')",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        eprintln!("--- mod_persisted_vars table exists: {table_exists} ---");
+
+        if table_exists {
+            let count: i64 = conn
+                .query_row("SELECT COUNT(*) FROM mod_persisted_vars", [], |r| r.get(0))
+                .unwrap();
+            eprintln!("  rows: {count}");
+            let mut p = conn
+                .prepare(
+                    "SELECT v.mod_id, m.name, v.var_key, v.value FROM mod_persisted_vars v
+                     LEFT JOIN mods m ON m.id = v.mod_id LIMIT 30",
+                )
+                .unwrap();
+            let rows = p
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                    ))
+                })
+                .unwrap();
+            for row in rows {
+                let (id, name, key, value) = row.unwrap();
+                eprintln!("  [{id}] {name:?} {key} = {value}");
+            }
+        }
+
+        eprintln!("--- aria-ish mods in db ---");
+        let mut m = conn
+            .prepare("SELECT id, name, folder_name FROM mods WHERE lower(name) LIKE '%aria%' OR lower(folder_name) LIKE '%aria%'")
+            .unwrap();
+        let rows = m
+            .query_map([], |r| {
+                Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?))
+            })
+            .unwrap();
+        for row in rows {
+            let (id, name, folder) = row.unwrap();
+            eprintln!("  [{id}] name={name:?} folder={folder:?}");
+        }
+    }
+
     fn db_with_one_mod() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         conn.execute_batch(crate::db::schema::SCHEMA).unwrap();

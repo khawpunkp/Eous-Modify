@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
 import { useModsStore } from './mods';
-import { maybeReloadXxmi } from '../utils/reload';
 import type { ModGroup } from '../types';
 
 export const useModGroupsStore = defineStore('modGroups', {
@@ -27,6 +26,8 @@ export const useModGroupsStore = defineStore('modGroups', {
          });
          return group;
       },
+      // Reload is the backend's job here, same as for a single mod — it has to follow the restore of
+      // each member's persisted variables without an IPC round trip in between.
       async toggle(groupId: number) {
          const isEnabled = await invoke<boolean>('toggle_mod_group', { groupId });
          const group = this.groups.find((g) => g.id === groupId);
@@ -34,7 +35,6 @@ export const useModGroupsStore = defineStore('modGroups', {
             group.isEnabled = isEnabled;
             group.members.forEach((m) => (m.isEnabled = isEnabled));
          }
-         await maybeReloadXxmi();
          return isEnabled;
       },
       async update(groupId: number, name: string, baseImage: string | null) {

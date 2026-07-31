@@ -4,7 +4,7 @@ use std::path::Path;
 use rusqlite::{params, Connection};
 
 use crate::models::{ModGroupMember, ModGroupWithMembers};
-use crate::mods::{is_mod_enabled, toggle_mod};
+use crate::mods::is_mod_enabled;
 
 fn fetch_members(conn: &Connection, base_mods_path: &Path, group_id: i64) -> Result<Vec<ModGroupMember>, String> {
     let mut stmt = conn
@@ -196,30 +196,47 @@ pub fn remove_member(
     get_group(conn, base_mods_path, group_id)
 }
 
-/// All-on-unless-all-on: if every member is currently enabled, disable all; otherwise enable all.
-/// Returns the resulting group-level state.
-pub fn toggle_group(conn: &Connection, base_mods_path: &Path, group_id: i64) -> Result<bool, String> {
+/// Decides what toggling this group should do: the state every member ends up in, and which members
+/// actually need flipping to get there.
+///
+/// All-on-unless-all-on — a group reads as enabled only when *every* member is, so a mixed group turns
+/// everything on rather than off.
+///
+/// Deciding is separate from applying because the caller has to interleave the renames with
+/// snapshotting each member's persisted 3DMigoto variables; see [`crate::commands::toggle`].
+pub fn plan_toggle(
+    conn: &Connection,
+    base_mods_path: &Path,
+    group_id: i64,
+) -> Result<(bool, Vec<ModGroupMember>), String> {
     let members = fetch_members(conn, base_mods_path, group_id)?;
     if members.is_empty() {
         return Err("Group has no members.".to_string());
     }
 
-    let all_enabled = members.iter().all(|m| m.is_enabled);
-    let target_state = !all_enabled;
+    let target_state = !members.iter().all(|m| m.is_enabled);
+    let to_flip = members.into_iter().filter(|m| m.is_enabled != target_state).collect();
 
-    for member in &members {
-        if member.is_enabled != target_state {
-            toggle_mod(base_mods_path, &member.folder_name)?;
-        }
-    }
-
-    Ok(target_state)
+    Ok((target_state, to_flip))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mods::toggle_mod;
     use std::fs;
+
+    /// Applies what [`plan_toggle`] decided. Production goes through
+    /// `commands::toggle::run`, which also snapshots each member's persisted variables; here we only
+    /// need the on-disk half so the planning logic can be asserted end to end.
+    fn apply_plan(conn: &Connection, base_mods_path: &Path, group_id: i64) -> Result<bool, String> {
+        let (target_state, to_flip) = plan_toggle(conn, base_mods_path, group_id)?;
+        for member in &to_flip {
+            toggle_mod(base_mods_path, &member.folder_name)?;
+        }
+        Ok(target_state)
+    }
+
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -261,13 +278,13 @@ mod tests {
         assert!(!group.is_enabled, "mixed state should not read as enabled");
 
         // Toggling a mixed-state group should turn everything ON, not off.
-        let new_state = toggle_group(&conn, &base, group.id).expect("toggle should succeed");
+        let new_state = apply_plan(&conn, &base, group.id).expect("toggle should succeed");
         assert!(new_state, "toggling a mixed group should enable everything");
         let group = get_group(&conn, &base, group.id).unwrap();
         assert!(group.members.iter().all(|m| m.is_enabled));
 
         // Toggling an all-enabled group should turn everything OFF.
-        let new_state = toggle_group(&conn, &base, group.id).expect("toggle should succeed");
+        let new_state = apply_plan(&conn, &base, group.id).expect("toggle should succeed");
         assert!(!new_state);
         let group = get_group(&conn, &base, group.id).unwrap();
         assert!(group.members.iter().all(|m| !m.is_enabled));

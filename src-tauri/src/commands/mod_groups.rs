@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use tauri::State;
 
+use crate::commands::toggle;
 use crate::mod_groups;
 use crate::models::ModGroupWithMembers;
 use crate::DbState;
@@ -69,9 +70,29 @@ pub fn delete_mod_group(group_id: i64, state: State<DbState>) -> Result<(), Stri
     mod_groups::delete_group(&conn, group_id)
 }
 
+/// Flips every member of a group to the same state, preserving each one's in-game toggle choices.
+///
+/// Routed through [`crate::commands::toggle`] rather than renaming members directly, so a group toggle
+/// gets the same snapshot/restore treatment a single mod does — and so eight members still cost one
+/// flush and one reload rather than sixteen keypresses.
 #[tauri::command]
 pub fn toggle_mod_group(group_id: i64, state: State<DbState>) -> Result<bool, String> {
     let mods_path = get_mods_folder(&state)?;
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    mod_groups::toggle_group(&conn, &mods_path, group_id)
+
+    let (target_state, flips) = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        let (target_state, to_flip) = mod_groups::plan_toggle(&conn, &mods_path, group_id)?;
+        let flips: Vec<toggle::Flip> = to_flip
+            .into_iter()
+            .map(|m| toggle::Flip {
+                mod_id: m.mod_id,
+                folder_name: m.folder_name,
+                was_enabled: m.is_enabled,
+            })
+            .collect();
+        (target_state, flips)
+    };
+
+    toggle::run(&state, &mods_path, &flips)?;
+    Ok(target_state)
 }

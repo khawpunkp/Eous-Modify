@@ -50,12 +50,21 @@ fn press_f10() -> Result<(), String> {
     Ok(())
 }
 
-/// Whether a process whose executable name matches `exe_path` is running, or `None` when we can't
-/// tell — an unset path, or an API that refused to answer.
+/// The game's own process — what 3DMigoto is actually injected into, and therefore what has to be
+/// alive for a reload keypress to mean anything.
+///
+/// Checked *in addition to* whatever executable the user configured, because the Settings path is the
+/// thing that **launches** the game and is very often `XXMI Launcher.exe`, which exits as soon as the
+/// game is up. Matching only that reports "not running" for a perfectly live game and silently
+/// swallows every reload. Safe to hardcode: this app is Zenless Zone Zero only.
+#[cfg(windows)]
+const GAME_PROCESS_NAMES: &[&str] = &["zenlesszonezero.exe"];
+
+/// Whether the game looks like it's running, or `None` when we genuinely can't tell.
 ///
 /// Used to avoid synthesizing F10 into whatever window happens to be focused when the game isn't even
 /// running. `None` means "carry on regardless" rather than "don't", so a detection failure degrades to
-/// the old unconditional behaviour instead of silently disabling reloads.
+/// unconditional behaviour instead of silently disabling reloads.
 #[cfg(windows)]
 fn game_is_running(exe_path: Option<&str>) -> Option<bool> {
     use windows::Win32::Foundation::CloseHandle;
@@ -64,7 +73,13 @@ fn game_is_running(exe_path: Option<&str>) -> Option<bool> {
         TH32CS_SNAPPROCESS,
     };
 
-    let exe_name = std::path::Path::new(exe_path?).file_name()?.to_string_lossy().to_lowercase();
+    let mut wanted: Vec<String> = GAME_PROCESS_NAMES.iter().map(|n| n.to_string()).collect();
+    if let Some(configured) = exe_path
+        .and_then(|p| std::path::Path::new(p).file_name())
+        .map(|n| n.to_string_lossy().to_lowercase())
+    {
+        wanted.push(configured);
+    }
 
     let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }.ok()?;
     let mut entry = PROCESSENTRY32W {
@@ -77,7 +92,7 @@ fn game_is_running(exe_path: Option<&str>) -> Option<bool> {
         loop {
             let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
             let name = String::from_utf16_lossy(&entry.szExeFile[..len]).to_lowercase();
-            if name == exe_name {
+            if wanted.iter().any(|w| *w == name) {
                 found = true;
                 break;
             }
@@ -95,23 +110,20 @@ fn game_is_running(exe_path: Option<&str>) -> Option<bool> {
 ///
 /// Skipped when we can see the game isn't running: `SendInput` writes to the global input stream, so
 /// an F10 sent with the game closed lands in whatever application the user is actually using.
-#[tauri::command]
-pub fn reload_xxmi(state: State<DbState>) -> Result<(), String> {
+#[allow(unused_variables)]
+pub fn send_reload(game_exe: Option<&str>) -> Result<(), String> {
     #[cfg(windows)]
     {
-        let exe = game_executable(&state)?;
-        if game_is_running(exe.as_deref()) == Some(false) {
+        if game_is_running(game_exe) == Some(false) {
             return Ok(());
         }
         press_f10()
     }
 
     #[cfg(not(windows))]
-    {
-        let _ = state;
-        Ok(())
-    }
+    Ok(())
 }
+
 
 /// How long to wait for 3DMigoto to write `d3dx_user.ini` after a reload keypress, and how often to
 /// look. Bounded because a game that ignores the keypress must not hang the toggle; polling the
@@ -168,11 +180,9 @@ fn mods_folder(state: &State<DbState>) -> Result<Option<String>, String> {
 }
 
 /// Reads the configured game executable, or `None` when the user hasn't set one yet.
-pub fn game_executable(state: &State<DbState>) -> Result<Option<String>, String> {
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    game_executable_from(&conn)
-}
-
+///
+/// Note this is the path that *launches* the game, which is frequently `XXMI Launcher.exe` rather than
+/// the game itself — see [`GAME_PROCESS_NAMES`] for why that matters.
 pub fn game_executable_from(conn: &rusqlite::Connection) -> Result<Option<String>, String> {
     conn.query_row(
         "SELECT value FROM settings WHERE key = 'game_executable_path'",
