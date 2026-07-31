@@ -105,16 +105,16 @@ async function handleImport() {
 <template>
    <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/60">
       <div
-         class="bg-card max-h-[85vh] w-11/12 max-w-120 overflow-y-auto rounded-lg border border-white/10 p-6"
+         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-2 overflow-y-auto rounded-lg border border-white/10 p-6"
       >
-         <VueTypography variant="TitleB" as="h2" class="mb-2">Import Mod</VueTypography>
+         <VueTypography variant="TitleB" as="h2">Import Mod</VueTypography>
 
-         <form @submit.prevent="handleImport">
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground mb-4 break-all">
+         <form @submit.prevent="handleImport" class="flex flex-col gap-4">
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground break-all">
                {{ archivePath }}
             </VueTypography>
 
-            <div v-if="!hasFixedTarget" class="mb-4">
+            <div v-if="!hasFixedTarget">
                <VueSelect
                   v-model="pickedTarget"
                   label="Import into"
@@ -124,7 +124,7 @@ async function handleImport() {
                />
             </div>
 
-            <div v-if="likelyRoots.length > 1" class="mb-4">
+            <div v-if="likelyRoots.length > 1">
                <VueSelect
                   v-model="form.selectedRoot"
                   label="Which folder is the mod?"
@@ -132,26 +132,10 @@ async function handleImport() {
                />
             </div>
 
-            <VueInput
-               id="import-name"
-               v-model="form.modName"
-               label="Name"
-               container-class="mb-4"
-               required
-            />
-            <VueInput
-               id="import-author"
-               v-model="form.author"
-               label="Author"
-               container-class="mb-4"
-            />
+            <VueInput id="import-name" v-model="form.modName" label="Name" required />
+            <VueInput id="import-author" v-model="form.author" label="Author" />
 
-            <VueTypography
-               v-if="errorMessage"
-               variant="CaptionR"
-               as="p"
-               class="text-destructive mb-4"
-            >
+            <VueTypography v-if="errorMessage" variant="CaptionR" as="p" class="text-destructive">
                {{ errorMessage }}
             </VueTypography>
 

@@ -60,24 +60,15 @@ function openFolder() {
       @click="selectMode && emit('toggle-select', mod)"
       v-auto-animate
    >
-      <VueCheckbox
-         v-if="selectMode"
-         :model-value="selected"
-         class="absolute top-2 left-2 z-10"
-      />
+      <VueCheckbox v-if="selectMode" :model-value="selected" class="absolute top-2 left-2 z-10" />
       <img
          :src="imageSrc ?? '/images/no-data.png'"
          alt=""
          class="bg-foreground aspect-video w-full rounded-sm object-cover"
       />
-      <div class="flex-1">
+      <div class="flex flex-1 flex-col gap-1">
          <VueTypography variant="BodyB">{{ mod.name }}</VueTypography>
-         <VueTypography
-            v-if="mod.author"
-            variant="CaptionR"
-            as="div"
-            class="text-muted-foreground mt-1"
-         >
+         <VueTypography v-if="mod.author" variant="CaptionR" as="div" class="text-muted-foreground">
             by {{ mod.author }}
          </VueTypography>
       </div>

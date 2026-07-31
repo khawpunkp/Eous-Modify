@@ -36,7 +36,7 @@ async function disband() {
 
 <template>
    <VueCard
-      class="border-primary/30 flex flex-col gap-4 p-4 transition-all"
+      class="flex flex-col gap-4 p-4 transition-all"
       :class="{ 'opacity-50': !group.isEnabled }"
       v-auto-animate
    >
@@ -95,7 +95,7 @@ async function disband() {
       <ul
          v-if="isExpanded"
          v-auto-animate
-         class="mt-2 flex flex-col gap-2 border-t border-white/10 pt-3"
+         class="flex flex-col gap-2 border-t border-white/10 pt-3"
       >
          <li
             v-for="member in group.members"

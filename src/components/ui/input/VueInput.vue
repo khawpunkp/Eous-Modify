@@ -4,10 +4,10 @@
          {{ label }}
       </Label>
 
-      <div class="relative flex">
+      <div class="relative flex gap-2">
          <div
             v-if="$slots.iconStart"
-            class="pointer-events-none absolute inset-y-0 left-0 ml-4 flex items-center"
+            class="pointer-events-none absolute inset-y-0 left-4 flex items-center"
          >
             <slot name="iconStart" :color="iconColor" />
          </div>
@@ -71,10 +71,10 @@
             "
          />
 
-         <div v-if="$slots.iconEnd" class="absolute inset-y-0 right-0 mr-4 flex items-center">
+         <div v-if="$slots.iconEnd" class="absolute inset-y-0 right-4 flex items-center">
             <slot name="iconEnd" :color="iconColor" />
          </div>
-         <div v-if="$slots.otherIcon" class="inset-y-0 right-0 ml-2 flex items-center">
+         <div v-if="$slots.otherIcon" class="inset-y-0 right-0 flex items-center">
             <slot name="otherIcon" />
          </div>
       </div>

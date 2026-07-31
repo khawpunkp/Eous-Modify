@@ -60,11 +60,11 @@ const iconColor = computed(() => {
       </SelectTrigger>
       <div
          v-if="$slots.icon"
-         class="pointer-events-none absolute inset-y-0 left-0 ml-4 flex items-center"
+         class="pointer-events-none absolute inset-y-0 left-4 flex items-center"
       >
          <slot name="icon" :color="iconColor" />
       </div>
-      <div class="absolute inset-y-0 right-0 z-10 mr-4 flex items-center gap-1">
+      <div class="absolute inset-y-0 right-4 z-10 flex items-center gap-1">
          <button
             v-if="clearable && hasValue && !disabled && !loading"
             type="button"

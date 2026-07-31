@@ -33,17 +33,17 @@ const specialityIcon = computed(() =>
       <VueCard
          class="hover:border-primary/30 relative flex flex-col overflow-hidden p-0 no-underline transition-all duration-300 hover:-translate-y-1.25 hover:shadow-[0_10px_25px_rgba(0,0,0,0.3)]"
       >
-         <div class="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5">
+         <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-2">
             <span
                v-if="totalMods > 0"
-               class="bg-primary/85 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+               class="bg-primary/85 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
             >
                <PhBoxArrowDown :size="16" weight="fill" />
                {{ totalMods }}
             </span>
             <span
                v-if="enabledMods > 0"
-               class="flex items-center gap-1.5 rounded-full bg-[rgba(29,209,161,0.9)] px-2.5 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+               class="flex items-center gap-2 rounded-full bg-[rgba(29,209,161,0.9)] px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
             >
                <PhCheckCircle :size="16" weight="fill" />
                {{ enabledMods }}
@@ -51,7 +51,7 @@ const specialityIcon = computed(() =>
          </div>
 
          <div
-            class="relative z-10 flex h-55 shrink-0 items-end justify-end gap-1.5 overflow-hidden rounded-b-lg bg-white bg-cover bg-top p-2"
+            class="relative z-10 flex h-55 shrink-0 items-end justify-end gap-2 overflow-hidden rounded-b-lg bg-white bg-cover bg-top p-2"
          >
             <img
                :src="resolveAgentImageSrc(agent.baseImage)"
@@ -66,13 +66,13 @@ const specialityIcon = computed(() =>
                v-if="specialityIcon"
                :src="specialityIcon"
                alt=""
-               class="bg-background z-10 size-8 rounded-full object-contain p-1.5"
+               class="bg-background z-10 size-8 rounded-full object-contain p-2"
             />
             <img
                v-if="attributeIcon"
                :src="attributeIcon"
                alt=""
-               class="bg-background z-10 size-8 rounded-full object-contain p-1.5"
+               class="bg-background z-10 size-8 rounded-full object-contain p-2"
             />
          </div>
          <div class="-mt-4 h-10 rounded-b-lg" :style="{ backgroundColor: barColor }" />

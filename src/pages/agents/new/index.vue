@@ -20,8 +20,8 @@ function goBack() {
 </script>
 
 <template>
-   <div>
-      <div class="mb-6 flex items-center border-b border-white/10 pb-4">
+   <div class="flex flex-col gap-6">
+      <div class="flex items-center border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="flex items-center gap-3">
             <button
                type="button"

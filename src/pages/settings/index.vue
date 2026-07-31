@@ -2,7 +2,13 @@
 import { onMounted, ref } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getVersion } from '@tauri-apps/api/app';
-import { PhBoxArrowDown, PhFolderOpen, PhGear, PhWarning } from '@phosphor-icons/vue';
+import {
+   PhArrowsClockwise,
+   PhBoxArrowDown,
+   PhFolderOpen,
+   PhGear,
+   PhWarning,
+} from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
@@ -82,8 +88,8 @@ async function checkForUpdates() {
 </script>
 
 <template>
-   <div>
-      <div class="mb-6 flex items-center border-b border-white/10 pb-4">
+   <div class="flex flex-col gap-6">
+      <div class="flex items-center border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="flex h-12 items-center gap-3">
             <PhGear :size="32" weight="fill" />
             Settings
@@ -91,10 +97,10 @@ async function checkForUpdates() {
       </div>
 
       <div class="flex flex-col gap-5">
-         <div class="bg-card w-full rounded-lg border border-white/10 p-6">
-            <VueTypography variant="TitleB" as="h2" class="mb-2">Paths Configuration</VueTypography>
+         <div class="bg-card flex w-full flex-col gap-5 rounded-lg border border-white/10 p-6">
+            <VueTypography variant="TitleB" as="h2">Paths Configuration</VueTypography>
 
-            <div class="mb-5 grid grid-cols-12 items-center border-b border-white/5 pb-5">
+            <div class="grid grid-cols-12 items-center border-b border-white/5 pb-5">
                <VueTypography variant="BodyB" as="h3" class="col-span-2 flex items-center gap-2">
                   <PhWarning v-if="!modsFolderPath" :size="24" weight="fill" class="text-accent" />
                   Mods Folder
@@ -140,18 +146,10 @@ async function checkForUpdates() {
             </div>
          </div>
 
-         <div class="bg-card w-full rounded-lg border border-white/10 p-6">
+         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
             <div class="flex items-center justify-between gap-6">
                <div>
-                  <VueTypography variant="TitleB" as="h2" class="mb-2">
-                     Reload mods in-game
-                  </VueTypography>
-                  <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
-                     Sends F10 after a toggle so XXMI reloads without restarting the game.
-                     <br />
-                     Sets check_foreground_window in your XXMI d3dx.ini, which is what lets the
-                     keypress work while this app is in front.
-                  </VueTypography>
+                  <VueTypography variant="TitleB" as="h2">Reload mods in-game</VueTypography>
                </div>
                <VueSwitch
                   :model-value="autoReload"
@@ -159,17 +157,20 @@ async function checkForUpdates() {
                   @update:model-value="setAutoReload"
                />
             </div>
-            <div v-if="autoReloadError" class="mt-2">
-               <VueTypography variant="CaptionR" as="p" class="text-destructive">
-                  {{ autoReloadError }}
-               </VueTypography>
-            </div>
+            <VueTypography
+               v-if="autoReloadError"
+               variant="CaptionR"
+               as="p"
+               class="text-destructive"
+            >
+               {{ autoReloadError }}
+            </VueTypography>
          </div>
 
-         <div class="bg-card w-full rounded-lg border border-white/10 p-6">
+         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
             <div class="flex items-center justify-between">
-               <div>
-                  <VueTypography variant="TitleB" as="h2" class="mb-2">Updates</VueTypography>
+               <div class="flex flex-col gap-2">
+                  <VueTypography variant="TitleB" as="h2">Updates</VueTypography>
                   <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
                      Currently running v{{ currentVersion }}
                   </VueTypography>
@@ -181,6 +182,11 @@ async function checkForUpdates() {
                      :disabled="updaterStore.isChecking"
                      @click="checkForUpdates"
                   >
+                     <PhArrowsClockwise v-if="!updaterStore.isChecking" :size="24" weight="fill" />
+                     <div
+                        v-else
+                        class="loader size-5 border-4! border-white! border-b-transparent!"
+                     />
                      {{ updaterStore.isChecking ? 'Checking…' : 'Check for Updates' }}
                   </VueButton>
                   <VueButton v-else type="button" @click="showUpdateModal = true">
@@ -189,7 +195,7 @@ async function checkForUpdates() {
                   </VueButton>
                </div>
             </div>
-            <div v-if="!showUpdateModal" class="mt-2">
+            <div v-if="!showUpdateModal">
                <VueTypography
                   v-if="updaterStore.errorMessage"
                   variant="CaptionR"

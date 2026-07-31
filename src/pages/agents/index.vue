@@ -159,10 +159,8 @@ const visibleAgents = computed(() => {
 </script>
 
 <template>
-   <div class="flex h-full flex-col">
-      <div
-         class="mb-6 flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-4"
-      >
+   <div class="flex h-full flex-col gap-6">
+      <div class="flex flex-wrap items-center justify-between gap-5 border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="mr-auto flex items-center gap-3">
             <PhUsers :size="32" weight="fill" />
             Agents
@@ -174,7 +172,7 @@ const visibleAgents = computed(() => {
          </VueButton>
       </div>
 
-      <div class="mb-6 flex flex-col flex-wrap items-end gap-6 border-b border-white/10 pb-6">
+      <div class="flex flex-col flex-wrap items-end gap-6 border-b border-white/10 pb-6">
          <div class="flex flex-wrap items-center gap-5">
             <div class="flex flex-wrap items-center gap-2">
                <button

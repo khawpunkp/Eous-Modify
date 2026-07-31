@@ -102,73 +102,82 @@ async function handleSubmit() {
 <template>
    <div class="fixed inset-0 z-100 flex items-center justify-center bg-black/60">
       <form
-         class="bg-card max-h-[85vh] w-11/12 max-w-120 overflow-y-auto rounded-lg border border-white/10 p-6"
+         class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-5 overflow-y-auto rounded-lg border border-white/10 p-6"
          @submit.prevent="handleSubmit"
       >
-         <VueTypography variant="TitleB" as="h2" class="mb-2">
-            {{ isEditing ? 'Edit Group' : 'New Group' }}
-         </VueTypography>
+         <div class="flex flex-col gap-2">
+            <VueTypography variant="TitleB" as="h2">
+               {{ isEditing ? 'Edit Group' : 'New Group' }}
+            </VueTypography>
 
-         <div class="mb-5 flex flex-col items-center gap-4">
-            <img
-               :src="baseImage ?? '/images/no-data.png'"
-               alt=""
-               class="bg-foreground aspect-video w-full rounded-lg border border-white/10 object-cover"
-            />
-            <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
-               {{ baseImage ? 'Choose Different Image' : 'Choose Image' }}
-            </VueButton>
+            <div class="flex flex-col items-center gap-4">
+               <img
+                  :src="baseImage ?? '/images/no-data.png'"
+                  alt=""
+                  class="bg-foreground aspect-video w-full rounded-lg border border-white/10 object-cover"
+               />
+               <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
+                  {{ baseImage ? 'Choose Different Image' : 'Choose Image' }}
+               </VueButton>
+            </div>
          </div>
 
-         <VueInput id="group-name" v-model="name" label="Name" container-class="mb-4" required />
+         <div class="flex flex-col gap-4">
+            <VueInput id="group-name" v-model="name" label="Name" required />
 
-         <div v-if="isEditing" class="mb-4 flex flex-col gap-2">
-            <Label>Mods in this group ({{ members.length }})</Label>
-            <ul v-auto-animate class="flex flex-col gap-2">
-               <li
-                  v-for="member in members"
-                  :key="member.modId"
-                  class="flex items-center justify-between rounded-md bg-white/5 px-3 py-2 text-[13px]"
-               >
-                  <span :class="{ 'opacity-50': !member.isEnabled }">{{ member.name }}</span>
-                  <button
-                     type="button"
-                     class="text-foreground/70 hover:text-destructive cursor-pointer p-1"
-                     title="Remove from group"
-                     @click="removeMod(member.modId)"
+            <div v-if="isEditing" class="flex flex-col gap-2">
+               <Label>Mods in this group ({{ members.length }})</Label>
+               <ul v-auto-animate class="flex flex-col gap-2">
+                  <li
+                     v-for="member in members"
+                     :key="member.modId"
+                     class="flex items-center justify-between rounded-md bg-white/5 px-3 py-2 text-[13px]"
                   >
-                     <PhX :size="16" />
-                  </button>
-               </li>
-            </ul>
-         </div>
+                     <span :class="{ 'opacity-50': !member.isEnabled }">{{ member.name }}</span>
+                     <button
+                        type="button"
+                        class="text-foreground/70 hover:text-destructive cursor-pointer p-1"
+                        title="Remove from group"
+                        @click="removeMod(member.modId)"
+                     >
+                        <PhX :size="16" />
+                     </button>
+                  </li>
+               </ul>
+            </div>
 
-         <div v-if="isEditing && addableMods.length > 0" class="mb-4 flex items-end gap-2">
-            <VueSelect
-               v-model="pendingModId"
-               label="Add a mod"
-               class="flex-1"
-               placeholder="Choose a mod…"
-               :options="addableMods"
-               searchable
-            />
-            <VueButton type="button" variant="outlined" :disabled="!pendingModId" @click="addMod">
-               <PhPlus :size="20" weight="bold" />
-               Add
-            </VueButton>
-         </div>
+            <div v-if="isEditing && addableMods.length > 0" class="flex items-end gap-2">
+               <VueSelect
+                  v-model="pendingModId"
+                  label="Add a mod"
+                  class="flex-1"
+                  placeholder="Choose a mod…"
+                  :options="addableMods"
+                  searchable
+               />
+               <VueButton
+                  type="button"
+                  variant="outlined"
+                  :disabled="!pendingModId"
+                  @click="addMod"
+               >
+                  <PhPlus :size="20" weight="bold" />
+                  Add
+               </VueButton>
+            </div>
 
-         <VueTypography v-if="errorMessage" variant="CaptionR" as="p" class="text-destructive mb-4">
-            {{ errorMessage }}
-         </VueTypography>
+            <VueTypography v-if="errorMessage" variant="CaptionR" as="p" class="text-destructive">
+               {{ errorMessage }}
+            </VueTypography>
 
-         <div class="mt-2 flex items-center justify-end gap-3">
-            <VueButton type="button" variant="outlined" class="min-w-32" @click="emit('close')">
-               Cancel
-            </VueButton>
-            <VueButton type="submit" class="min-w-32" :disabled="isSaving || !name.trim()">
-               {{ isSaving ? 'Saving…' : isEditing ? 'Save' : 'Create Group' }}
-            </VueButton>
+            <div class="flex items-center justify-end gap-3">
+               <VueButton type="button" variant="outlined" class="min-w-32" @click="emit('close')">
+                  Cancel
+               </VueButton>
+               <VueButton type="submit" class="min-w-32" :disabled="isSaving || !name.trim()">
+                  {{ isSaving ? 'Saving…' : isEditing ? 'Save' : 'Create Group' }}
+               </VueButton>
+            </div>
          </div>
       </form>
    </div>

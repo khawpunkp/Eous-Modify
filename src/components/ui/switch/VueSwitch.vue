@@ -26,7 +26,9 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits);
       :class="
          cn(
             'data-[state=checked]:bg-primary data-[state=unchecked]:bg-white/15',
-            'h-6 w-11 rounded-full p-0.5',
+            // h-7/w-12 with p-1 keeps the geometry exact on whole-number steps: 28-8 = 20px inner
+            // height for the size-5 thumb, and 48-8 = 40px inner width for its translate-x-5 travel.
+            'h-7 w-12 rounded-full p-1',
             'inline-flex shrink-0 items-center',
             'transition-all outline-none',
             'disabled:cursor-not-allowed disabled:opacity-50',

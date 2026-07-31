@@ -163,83 +163,96 @@ async function runScan() {
 </script>
 
 <template>
-   <aside class="bg-card flex h-full max-w-65 shrink-0 grow flex-col overflow-y-auto p-5">
-      <div class="mb-8 flex items-center justify-center">
+   <aside class="bg-card flex h-full max-w-65 shrink-0 grow flex-col gap-8 overflow-y-auto p-5">
+      <div class="flex items-center justify-center">
          <img src="/images/logo.webp" class="w-6/10" />
       </div>
-      <div class="flex flex-col border-b border-white/10 pb-4">
-         <VueButton
-            class="w-full justify-center"
-            :disabled="isLaunching || !gameExecutablePath"
-            @click="launchGame"
-         >
-            <PhPlay :size="24" weight="fill" />
-            {{ isLaunching ? 'Launching…' : 'Quick Launch' }}
-         </VueButton>
-         <VueTypography
-            v-if="launchError"
-            variant="CaptionR"
-            as="p"
-            class="text-destructive mt-2 mb-2"
-         >
-            {{ launchError }}
-         </VueTypography>
+
+      <!-- grow lives here now: the nav list still pushes the bottom actions down, but it does so
+           inside this wrapper rather than directly against the aside. -->
+      <div class="flex grow flex-col gap-4">
+         <div class="flex flex-col gap-4 border-b border-white/10 pb-4">
+            <div class="flex flex-col gap-2">
+               <VueButton
+                  class="w-full justify-center"
+                  :disabled="isLaunching || !gameExecutablePath"
+                  @click="launchGame"
+               >
+                  <PhPlay :size="24" weight="fill" />
+                  {{ isLaunching ? 'Launching…' : 'Quick Launch' }}
+               </VueButton>
+               <VueTypography v-if="launchError" variant="CaptionR" as="p" class="text-destructive">
+                  {{ launchError }}
+               </VueTypography>
+            </div>
+
+            <div class="flex flex-col gap-2">
+               <VueButton
+                  variant="outlined"
+                  class="w-full justify-center"
+                  :disabled="isAnalyzingImport || !modsFolderPath || !gameExecutablePath"
+                  @click="startImport"
+               >
+                  <PhFileArrowDown :size="24" weight="fill" />
+                  {{ isAnalyzingImport ? 'Analyzing…' : 'Import Mod' }}
+               </VueButton>
+               <VueTypography v-if="importError" variant="CaptionR" as="p" class="text-destructive">
+                  {{ importError }}
+               </VueTypography>
+            </div>
+         </div>
+
+         <ul class="flex grow list-none flex-col gap-2 border-b border-white/10 pb-4">
+            <li v-for="item in navItems" :key="item.to">
+               <VueButton
+                  type="button"
+                  variant="ghost"
+                  color="gray"
+                  class="w-full justify-start gap-3 rounded-lg px-4 py-3"
+                  :class="isActive(item.to) ? 'bg-primary text-white' : 'hover:bg-primary/10'"
+                  @click="router.push(item.to)"
+                  :disabled="!modsFolderPath || !gameExecutablePath"
+               >
+                  <component :is="item.icon" :size="24" weight="fill" />
+                  {{ item.label }}
+                  <span
+                     v-if="item.to === '/settings' && updaterStore.update"
+                     class="bg-accent ml-auto size-2 rounded-full"
+                     title="Update available"
+                  />
+               </VueButton>
+            </li>
+         </ul>
+
+         <div class="flex flex-col gap-2">
+            <VueButton
+               :disabled="!modsFolderPath"
+               class="w-full justify-center"
+               @click="openModsFolder"
+            >
+               <PhFolderOpen :size="24" weight="fill" />
+               Open Mods Folder
+            </VueButton>
+            <VueTypography
+               v-if="openFolderError"
+               variant="CaptionR"
+               as="p"
+               class="text-destructive"
+            >
+               {{ openFolderError }}
+            </VueTypography>
+         </div>
 
          <VueButton
             variant="outlined"
-            class="mt-4 w-full justify-center"
-            :disabled="isAnalyzingImport || !modsFolderPath || !gameExecutablePath"
-            @click="startImport"
+            class="w-full justify-center"
+            :disabled="isScanning || !modsFolderPath"
+            @click="runScan"
          >
-            <PhFileArrowDown :size="24" weight="fill" />
-            {{ isAnalyzingImport ? 'Analyzing…' : 'Import Mod' }}
+            <PhArrowsClockwise :size="24" weight="fill" />
+            {{ isScanning ? 'Scanning…' : 'Scan Mods Folder' }}
          </VueButton>
-         <VueTypography v-if="importError" variant="CaptionR" as="p" class="text-destructive mt-2">
-            {{ importError }}
-         </VueTypography>
       </div>
-      <ul class="mt-4 grow list-none border-b border-white/10 pb-2">
-         <li v-for="item in navItems" :key="item.to" class="mb-2">
-            <VueButton
-               type="button"
-               variant="ghost"
-               color="gray"
-               class="w-full justify-start gap-3 rounded-lg px-4 py-3"
-               :class="isActive(item.to) ? 'bg-primary text-white' : 'hover:bg-primary/10'"
-               @click="router.push(item.to)"
-               :disabled="!modsFolderPath || !gameExecutablePath"
-            >
-               <component :is="item.icon" :size="24" weight="fill" />
-               {{ item.label }}
-               <span
-                  v-if="item.to === '/settings' && updaterStore.update"
-                  class="bg-accent ml-auto size-2 rounded-full"
-                  title="Update available"
-               />
-            </VueButton>
-         </li>
-      </ul>
-
-      <VueButton
-         :disabled="!modsFolderPath"
-         class="mt-4 w-full justify-center"
-         @click="openModsFolder"
-      >
-         <PhFolderOpen :size="24" weight="fill" />
-         Open Mods Folder
-      </VueButton>
-      <VueTypography v-if="openFolderError" variant="CaptionR" as="p" class="text-destructive mt-2">
-         {{ openFolderError }}
-      </VueTypography>
-      <VueButton
-         variant="outlined"
-         class="mt-4 w-full justify-center"
-         :disabled="isScanning || !modsFolderPath"
-         @click="runScan"
-      >
-         <PhArrowsClockwise :size="24" weight="fill" />
-         {{ isScanning ? 'Scanning…' : 'Scan Mods Folder' }}
-      </VueButton>
 
       <ImportModal
          v-if="isImporting && importArchivePath && importAnalysis"
@@ -254,21 +267,23 @@ async function runScan() {
          class="fixed inset-0 z-100 flex items-center justify-center bg-black/60"
       >
          <div
-            class="bg-card max-h-[85vh] w-11/12 max-w-120 overflow-y-auto rounded-lg border border-white/10 p-6"
+            class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-5 overflow-y-auto rounded-lg border border-white/10 p-6"
          >
-            <VueTypography variant="TitleB" as="h2" class="mb-4">Scan Result</VueTypography>
-            <VueTypography
-               v-if="scanMessage && !scanError"
-               variant="BodyB"
-               as="p"
-               class="text-muted-foreground"
-            >
-               {{ scanMessage }}
-            </VueTypography>
-            <VueTypography v-if="scanError" variant="CaptionR" as="p" class="text-destructive">
-               {{ scanError }}
-            </VueTypography>
-            <div class="mt-5 flex justify-end">
+            <div class="flex flex-col gap-4">
+               <VueTypography variant="TitleB" as="h2">Scan Result</VueTypography>
+               <VueTypography
+                  v-if="scanMessage && !scanError"
+                  variant="BodyB"
+                  as="p"
+                  class="text-muted-foreground"
+               >
+                  {{ scanMessage }}
+               </VueTypography>
+               <VueTypography v-if="scanError" variant="CaptionR" as="p" class="text-destructive">
+                  {{ scanError }}
+               </VueTypography>
+            </div>
+            <div class="flex justify-end">
                <VueButton type="button" @click="showScanResult = false" class="min-w-32">
                   Close
                </VueButton>
