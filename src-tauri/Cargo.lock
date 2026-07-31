@@ -1091,6 +1091,7 @@ dependencies = [
  "toml 0.8.20",
  "unrar",
  "walkdir",
+ "windows",
  "zip 0.6.6",
 ]
 
