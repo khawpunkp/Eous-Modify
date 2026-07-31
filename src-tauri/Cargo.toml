@@ -1,0 +1,44 @@
+[package]
+name = "eous-modify"
+version = "1.0.0"
+description = "Eous Modify"
+authors = ["im anomalocaris"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "eous_modify_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-process = "2"
+tauri-plugin-shell = "2"
+tauri-plugin-updater = "2"
+base64 = "0.22"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rusqlite = { version = "0.31", features = ["bundled"] } # Use bundled for easier setup
+thiserror = "1.0"
+once_cell = "1.19" # For lazy static initialization
+walkdir = "2"
+lazy_static = "1.4" # Useful for regex compilation
+regex = "1"
+rust-ini = "0.21.1"
+toml = "0.8.20"
+zip = "0.6"
+sevenz-rust = "0.6.1"
+unrar = "=0.5.8"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

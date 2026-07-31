@@ -1,0 +1,194 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@theme {
+   --color-primary: #ef780a;
+   --color-primary-foreground: #ffffff;
+   --color-secondary: #f99146;
+   --color-secondary-foreground: #ffffff;
+   --color-destructive: #ff6b6b;
+   --color-muted-foreground: #6b7280;
+   --color-background: #080808;
+   --color-foreground: #f5f6fa;
+   --color-card: #333336;
+   --color-accent: #ff9f43;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Thin.ttf') format('truetype');
+   font-weight: 100;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Thin_Italic.ttf') format('truetype');
+   font-weight: 100;
+   font-style: italic;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Light.ttf') format('truetype');
+   font-weight: 300;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Light_Italic.ttf') format('truetype');
+   font-weight: 300;
+   font-style: italic;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Regular.ttf') format('truetype');
+   font-weight: 400;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Regular_Italic.ttf') format('truetype');
+   font-weight: 400;
+   font-style: italic;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Medium.ttf') format('truetype');
+   font-weight: 500;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Medium_Italic.ttf') format('truetype');
+   font-weight: 500;
+   font-style: italic;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Bold.ttf') format('truetype');
+   font-weight: 700;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Bold_Italic.ttf') format('truetype');
+   font-weight: 700;
+   font-style: italic;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Black.ttf') format('truetype');
+   font-weight: 900;
+   font-style: normal;
+   font-display: swap;
+}
+
+@font-face {
+   font-family: 'HarmonyOS Sans';
+   src: url('/fonts/HarmonyOS_Sans_Black_Italic.ttf') format('truetype');
+   font-weight: 900;
+   font-style: italic;
+   font-display: swap;
+}
+
+/* Base styles */
+* {
+   font-family: 'HarmonyOS Sans', sans-serif;
+   box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+   height: 100%;
+   margin: 0;
+   padding: 0;
+   overflow: hidden;
+}
+
+body {
+   background-color: var(--color-background);
+   color: var(--color-foreground);
+   font-family: 'HarmonyOS Sans', sans-serif;
+}
+
+/* Scrollbar styles */
+::-webkit-scrollbar {
+   width: 8px;
+   height: 8px;
+}
+
+::-webkit-scrollbar-track {
+   background: rgba(0, 0, 0, 0.1);
+   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+   background-color: rgba(239, 120, 10, 0.4);
+   border-radius: 10px;
+   border: 2px solid transparent;
+   background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+   background-color: rgba(239, 120, 10, 0.6);
+}
+
+/* ui-primitives: VueButton's/VueSelect's `loading` spinner */
+.loader {
+   border: 5px solid var(--color-primary, #ef780a);
+   border-bottom-color: transparent;
+   border-radius: 50%;
+   display: inline-block;
+   box-sizing: border-box;
+   animation: loader-rotation 1s linear infinite;
+}
+
+@keyframes loader-rotation {
+   0% {
+      transform: rotate(0deg);
+   }
+   100% {
+      transform: rotate(360deg);
+   }
+}
+
+/* ui-primitives: fade/slide-up transitions (VueModal/VueDrawer) */
+.fade-enter-active,
+.fade-leave-active {
+   transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+   opacity: 0;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+   transition: transform 0.5s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+   transform: translateY(100%);
+}

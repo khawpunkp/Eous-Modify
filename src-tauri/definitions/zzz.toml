@@ -1,0 +1,111 @@
+# ===================
+# ==== Characters ====
+# ===================
+[characters]
+name = "Characters"
+entities = [
+    { name = "Belle", slug = "belle", description = "Belle is the co-owner of Random Play together with her older brother, Wise.", details = '{"rank": "", "attribute": "", "speciality": "", "type": [""]}', base_image = "belle_base.jpg", aliases = ["belle"] },
+    { name = "Wise", slug = "wise", description = "Wise is the co-owner of Random Play together with his younger sister, Belle.", details = '{"rank": "", "attribute": "", "speciality": "", "type": [""]}', base_image = "wise_base.jpg", aliases = ["wise"] },
+    { name = "Rina", slug = "rina", description = "Alexandrina Sebastiane, commonly referred to as Rina, is the Head Maid and most senior member of Victoria Housekeeping Co.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Support", "type": ["Strike"]}', base_image = "rina_base.jpg", aliases = ["rina", "alexandrina", "sebastiane", "alexandrina sebastiane"] },
+    { name = "Anby", slug = "anby", description = "Anby Demara is a member of the Cunning Hares.", details = '{"rank": "A", "attribute": "Electric", "speciality": "Stun", "type": ["Slash"]}', base_image = "anby_base.jpg", aliases = ["anby", "anby demara"] },
+    { name = "Anton", slug = "anton", description = "Anton Ivanov is a Manager of Belobog Heavy Industries.", details = '{"rank": "A", "attribute": "Electric", "speciality": "Attack", "type": ["Pierce"]}', base_image = "anton_base.jpg", aliases = ["anton", "ivanov", "anton ivanov"] },
+    { name = "Harumasa", slug = "harumasa", description = "Asaba Harumasa is a member of Hollow Special Operations Section 6.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Attack", "type": ["Pierce","Slash"]}', base_image = "harumasa_base.jpg", aliases = ["harumasa", "asaba", "asaba harumasa"] },
+    { name = "Astra Yao", slug = "astra", description = "Astra Yao is a member of the Stars of Lyra.", details = '{"rank": "S", "attribute": "Ether", "speciality": "Support", "type": ["Strike"]}', base_image = "astra_base.jpg", aliases = ["astra", "yao", "astra yao"] },
+    { name = "Ben", slug = "ben", description = "Ben Bigger is the Head of Finance of Belobog Heavy Industries.", details = '{"rank": "A", "attribute": "Fire", "speciality": "Defense", "type": ["Strike"]}', base_image = "ben_base.jpg", aliases = ["ben", "bigger", "ben bigger"] },
+    { name = "Billy", slug = "billy", description = "Billy Kid is a member of the Cunning Hares.", details = '{"rank": "A", "attribute": "Physical", "speciality": "Attack", "type": ["Pierce"]}', base_image = "billy_base.jpg", aliases = ["billy", "billy kid"] },
+    { name = "Burnice", slug = "burnice", description = "Burnice White is a member of the Sons of Calydon.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Anomaly", "type": ["Pierce"]}', base_image = "burnice_base.jpg", aliases = ["burnice", "burnice white"] },
+    { name = "Caesar", slug = "caesar", description = "Caesar King is the Leader of the Sons of Calydon.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Defense", "type": ["Slash","Strike"]}', base_image = "caesar_base.jpg", aliases = ["caesar", "caesar king"] },
+    { name = "Corin", slug = "corin", description = "Corin Wickes is a Maid of Victoria Housekeeping Co.", details = '{"rank": "A", "attribute": "Physical", "speciality": "Attack", "type": ["Slash"]}', base_image = "corin_base.jpg", aliases = ["corin", "wickes", "corin wickes"] },
+    { name = "Ellen", slug = "ellen", description = "Ellen Joe is the newest Maid of Victoria Housekeeping Co.", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack", "type": ["Slash"]}', base_image = "ellen_base.jpg", aliases = ["ellen", "ellen joe", "ellenjoe", "joe"] },
+    { name = "Evelyn", slug = "evelyn", description = "Evelyn Chevalier is a member of the Stars of Lyra.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Attack", "type": ["Slash"]}', base_image = "evelyn_base.jpg", aliases = ["evelyn", "chevalier", "evelyn chevalier"] },
+    { name = "Grace", slug = "grace", description = "Grace Howard is the Lead Tech of Belobog Heavy Industries.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Anomaly", "type": ["Pierce"]}', base_image = "grace_base.jpg", aliases = ["grace", "howard", "grace howard"] },
+    { name = "Miyabi", slug = "miyabi", description = "Hoshimi Miyabi is the Chief of Hollow Special Operations Section 6. She has been awarded the title of 'Void Hunter', and is the youngest person in New Eridu to bear such a title.", details = '{"rank": "S", "attribute": "Frost", "speciality": "Anomaly", "type": ["Slash"]}', base_image = "miyabi_base.jpg", aliases = ["miyabi", "hoshimi", "hoshimi miyabi"] },
+    { name = "Jane", slug = "jane", description = "Jane Doe is a criminal behavior specialist working as a consultant for the Criminal Investigation Special Response Team.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Anomaly", "type": ["Slash"]}', base_image = "jane_base.jpg", aliases = ["jane", "jane doe"] },
+    { name = "Koleda", slug = "koleda", description = "Koleda Belobog is the President of Belobog Heavy Industries.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Stun", "type": ["Strike"]}', base_image = "koleda_base.jpg", aliases = ["koleda", "koleda belobog"] },
+    { name = "Lighter", slug = "lighter", description = "Lighter is a member of the Sons of Calydon.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Stun", "type": ["Strike"]}', base_image = "lighter_base.jpg", aliases = ["lighter"] },
+    { name = "Lucy", slug = "lucy", description = "Luciana de Montefio , full name Luciana Auxesis Theodoro de Montefio, commonly shortened to simply Lucy, is a member of the Sons of Calydon.", details = '{"rank": "A", "attribute": "Fire", "speciality": "Support", "type": ["Strike"]}', base_image = "lucy_base.jpg", aliases = ["lucy", "luciana", "montefio"] },
+    { name = "Nekomata", slug = "nekomata", description = "Nekomiya Mana, better known by her nickname Nekomata, is a member of the Cunning Hares. She was formerly a member of the Red Fang Gang.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Attack", "type": ["Slash"]}', base_image = "nekomata_base.jpg", aliases = ["nekomata", "nekomiya", "nekomiya mana"] },
+    { name = "Nicole", slug = "nicole", description = "Nicole Demara is the leader of the Cunning Hares.", details = '{"rank": "A", "attribute": "Ether", "speciality": "Support", "type": ["Strike"]}', base_image = "nicole_base.jpg", aliases = ["nicole", "nicole demara"] },
+    { name = "Piper", slug = "piper", description = "Piper Wheel is a member of the Sons of Calydon.", details = '{"rank": "A", "attribute": "Physical", "speciality": "Anomaly", "type": ["Slash"]}', base_image = "piper_base.jpg", aliases = ["piper", "wheel", "piper wheel"] },
+    { name = "Pulchra", slug = "pulchra", description = "Pulchra Fellini is a member of the Sons of Calydon.", details = '{"rank": "A", "attribute": "Physical", "speciality": "Stun", "type": ["Slash"]}', base_image = "pulchra_base.jpg", aliases = ["pulchra", "fellini", "pulchra fellini"] },
+    { name = "Qingyi", slug = "qingyi", description = "Qingyi , official designation '01 Neo-Genesis VI', is a Rookie Officer of the Criminal Investigation Special Response Team.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Stun", "type": ["Strike"]}', base_image = "qingyi_base.jpg", aliases = ["qingyi", "neo-genesis", "neo genesis"] },
+    { name = "Seth", slug = "seth", description = "Seth Lowell is a Rookie Officer of the Criminal Investigation Special Response Team.", details = '{"rank": "A", "attribute": "Electric", "speciality": "Defense", "type": ["Slash"]}', base_image = "seth_base.jpg", aliases = ["seth", "lowell", "seth lowell"] },
+    { name = "Soldier 0 - Anby", slug = "soldier0", description = "Soldier 0 - Anby , formerly introduced as Silver Soldier - Anby, is the captain of the Defense Force - Silver Squad.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Attack", "type": ["Slash"]}', base_image = "soldier0_base.jpg", aliases = ["soldier0", "soldier 0", "s0", "s0 anby", "soldier0anby"] },
+    { name = "Soldier 11", slug = "soldier11", description = "Soldier 11 is is both a Primary Responder and the Lead Striker of the Obol Squad.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Attack", "type": ["Slash"]}', base_image = "soldier11_base.jpg", aliases = ["soldier11", "soldier 11", "s11"] },
+    { name = "Soukaku", slug = "soukaku", description = "Soukaku is a member of Hollow Special Operations Section 6.", details = '{"rank": "A", "attribute": "Ice", "speciality": "Support", "type": ["Slash"]}', base_image = "soukaku_base.jpg", aliases = ["soukaku"] },
+    { name = "Trigger", slug = "trigger", description = "Trigger is a member of the Obol Squad.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Stun", "type": ["Pierce"]}', base_image = "trigger_base.jpg", aliases = ["trigger"] },
+    { name = "Yanagi", slug = "yanagi", description = "Tsukishiro Yanagi is the Deputy Chief of Hollow Special Operations Section 6.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Anomaly", "type": ["Slash"]}', base_image = "yanagi_base.jpg", aliases = ["yanagi", "tsukishiro", "tsukishiro yanagi"] },
+    { name = "Lycaon", slug = "lycaon", description = "Von Lycaon is the Leader of Victoria Housekeeping Co.", details = '{"rank": "S", "attribute": "Ice", "speciality": "Stun", "type": ["Strike"]}', base_image = "lycaon_base.jpg", aliases = ["lycaon", "von lycaon"] },
+    { name = "Zhu Yuan", slug = "zhu", description = "Zhu Yuan is the Leader of the Criminal Investigation Special Response Team.", details = '{"rank": "S", "attribute": "Ether", "speciality": "Attack", "type": ["Pierce"]}', base_image = "zhu_base.jpg", aliases = ["zhu", "zhuyuan", "zhu yuan"] },
+    { name = "Vivian", slug = "vivian", description = "Vivian Banshee is a member of Mockingbird.", details = '{"rank": "S", "attribute": "Ether", "speciality": "Anomaly", "type": ["Slash"]}', base_image = "vivian_base.jpg", aliases = ["vivian", "banshee", "vivian banshee"] },
+    { name = "Hugo", slug = "hugo", description = "Hugo Vlad is a member of Mockingbird.", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack", "type": ["Slash"]}', base_image = "hugo_base.jpg", aliases = ["hugo", "vlad", "hugo vlad"] },
+    { name = "Ju Fufu", slug = "fufu", description = "Ju Fufu is a member of Yunkui Summit.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Stun", "type": [""]}', base_image = "jufufu_base.jpg", aliases = ["fufu", "ju fufu", "jufufu"] },
+    { name = "Yixuan", slug = "yixuan", description = "Yixuan is the High Preceptor of Yunkui Summit.", details = '{"rank": "S", "attribute": "AuricInk", "speciality": "Rupture", "type": ["Strike"]}', base_image = "yixuan_base.jpg", aliases = ["yixuan"] },
+    { name = "Pan Yinhu", slug = "pan", description = "Pan Yinhu is a member of Yunkui Summit.", details = '{"rank": "A", "attribute": "Physical", "speciality": "Defense", "type": ["Strike"]}', base_image = "pan_base.jpg", aliases = ["pan", "yinhu", "pan yinhu"] },
+    { name = "Yuzuha", slug = "yuzuha", description = "Ukinami Yuzuha is a member of the Spook Shack.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Support", "type": [""]}', base_image = "yuzuha_base.jpg", aliases = ["yuzuha", "ukinami", "ukinami yuzuha"] },
+    { name = "Alice", slug = "alice", description = "Alice Thymefield is a member of the Spook Shack.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Anomaly", "type": [""]}', base_image = "alice_base.jpg", aliases = ["alice", "thymefield", "alice thymefield"] },
+    { name = "Seed", slug = "seed", description = "Seed is a member of the Obol Squad.", details = '{"rank": "S", "attribute": "Electric", "speciality": "Attack", "type": ["Strike"]}', base_image = "seed_base.jpg", aliases = ["seed"] },
+    { name = "Orphie & Magus", slug = "orphie", description = "Orphie Magnusson & Magus are members of the Obol Squad, with Magus being the captain of the Obol Squad and Orphie being an underling.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Attack", "type": [""]}', base_image = "orphie_base.jpg", aliases = ["orphie", "magus", "orphie magnusson", "magnusson"] },
+    { name = "Lucia", slug = "lucia", description = "Lucia Elowen is a member of the Spook Shack. Her username on the forum is \"Night Emissary.\"", details = '{"rank": "S", "attribute": "Ether", "speciality": "Support", "type": [""]}', base_image = "lucia_base.jpg", aliases = ["lucia", "elowen", "lucia elowen"] },
+    { name = "Manato", slug = "manato", description = "Komano Manato is a member of the Spook Shack.", details = '{"rank": "A", "attribute": "Fire", "speciality": "Rupture", "type": ["Slash"]}', base_image = "manato_base.jpg", aliases = ["manato", "komano", "komano manato"] },
+    { name = "Yidhari", slug = "yidhari", description = "Yidhari Murphy is a member of the Spook Shack.", details = '{"rank": "S", "attribute": "Ice", "speciality": "Rupture", "type": ["Strike"]}', base_image = "yidhari_base.jpg", aliases = ["yidhari", "murphy", "yidhari murphy"] },
+    { name = "Dialyn", slug = "dialyn", description = "Dialyn is a customer service representative of TOPS and Judge of the Krampus Compliance Authority.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Stun", "type": ["Slash"]}', base_image = "dialyn_base.jpg", aliases = ["dialyn"] },
+    { name = "Banyue", slug = "banyue", description = "Banyue is a member of the Krampus Compliance Authority. He is addressed as Shifu by his disciples.", details = '{"rank": "S", "attribute": "Fire", "speciality": "Rupture", "type": ["Strike"]}', base_image = "banyue_base.jpg", aliases = ["banyue"] },
+    { name = "Ye Shunguang", slug = "shunguang", description = "Ye Shunguang is a member of Yunkui Summit. She has been awarded the title of \"Void Hunter: Qingming Arbiter.\"", details = '{"rank": "S", "attribute": "HonedEdge", "speciality": "Attack", "type": ["Strike"]}', base_image = "shunguang_base.jpg", aliases = ["shunguang", "ye shunguang"] },
+    { name = "Zhao", slug = "zhao", description = "Zhao is a member of the Krampus Compliance Authority.", details = '{"rank": "S", "attribute": "Ice", "speciality": "Defense", "type": ["Strike"]}', base_image = "zhao_base.jpg", aliases = ["zhao"] },
+    { name = "Sunna", slug = "sunna", description = "Sunna is the composer of the Angels of Delusion.", details = '{"rank": "S", "attribute": "Physical", "speciality": "Support", "type": [""]}', base_image = "sunna_base.jpg", aliases = ["sunna"] },
+    { name = "Aria", slug = "aria", description = "Aria is the lead vocalist of the Angels of Delusion.", details = '{"rank": "S", "attribute": "Ether", "speciality": "Anomaly", "type": [""]}', base_image = "aria_base.jpg", aliases = ["aria"] },
+]
+
+# ===================
+# ====   NPCs    ====
+# ===================
+[npcs]
+name = "NPCs"
+entities = [
+
+]
+
+# ===================
+# ====  Enemies  ====
+# ===================
+[enemies]
+name = "Enemies"
+entities = [
+    { name = "Ether Mutants", slug = "ether-mutants", description = "Ether Mutants are hostile Ethereals that spawn within Hollows.", details = '{"type": "Monster"}', base_image = "ether-mutants.jpg" },
+    { name = "Thugs", slug = "thugs", description = "Thugs are hostile humans who conduct criminal activities inside Hollows.", details = '{"type": "Human"}', base_image = "thugs.jpg" },
+    { name = "Corrupted", slug = "corrupted", description = "Corrupted enemies are former humans and machines who have succumbed to the Hollows' influence, transforming them into Ethereals.", details = '{"type": "Corrupted"}', base_image = "corrupted.jpg" },
+    { name = "Rebel Soldiers", slug = "rebel-soldiers", description = "Rebel Soldiers are rogue members of the New Eridu Defense Force who serve other interests.", details = '{"type": "Human"}', base_image = "rebel-soldiers.jpg" },
+    { name = "Special", slug = "special", description = "Special enemies do not fit into any of the previous categories.", details = '{"type": "Special"}', base_image = "special.jpg" },
+]
+
+# ===================
+# ====  Weapons  ====
+# ===================
+[weapons]
+name = "Weapons"
+entities = [
+]
+
+# ===================
+# ====  Objects  ====
+# ===================
+[objects]
+name = "Objects"
+entities = [
+    { name = "Buildings", slug = "zzz-buildings", description = "Game buildings.", details = '{"type": "Building"}', base_image = "buildings.jpg" },
+
+]
+
+# ===================
+# ====    UI    ====
+# ===================
+[ui]
+name = "UI"
+entities = [
+    { name = "GUI", slug = "zzz-gui", description = "Graphical User Interface.", details = '{"type": "GUI"}', base_image = "zzz-gui_base.jpg" },
+    { name = "Icons", slug = "zzz-icons", description = "Game icons.", details = '{"type": "Icons"}', base_image = "zzz-icons_base.jpg" },
+    { name = "Effects", slug = "zzz-effects", description = "Game effects.", details = '{"type": "FX"}', base_image = "zzz-effects.jpg" },
+    { name = "Map", slug = "zzz-map", description = "Map modifications.", details = '{"type": "Map"}', base_image = "zzz-map_base.jpg" },
+    { name = "Loading screens", slug = "zzz-loading-screens", description = "Loading screens.", details = '{"type": "Screens"}', base_image = "zzz-loading-screen_base.jpg" },
+]
