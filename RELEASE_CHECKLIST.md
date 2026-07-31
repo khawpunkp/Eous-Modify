@@ -19,26 +19,38 @@
 ## Every release, from here on
 
 1. **Decide the new version number** (semver — bump patch for fixes, minor for features).
-2. **Bump the version in all three places** — they must match exactly:
+2. **Bump the version in all four places** — they must match exactly:
    - `package.json` (`version`)
    - `src-tauri/Cargo.toml` (`[package] version`)
+   - `src-tauri/Cargo.lock` (the `eous-modify` package entry — `cargo test` or `cargo check` updates
+     it for you once `Cargo.toml` is edited)
    - `src-tauri/tauri.conf.json` (`version`)
-3. Commit that bump (e.g. `git commit -m "chore: bump version to 3.1.0"`).
-4. Push the commit, then **tag it and push the tag** — the tag is what triggers the release build:
+3. **Write the release notes in `CHANGELOG.md`**, as a `## <version>` section. This is not optional and
+   it cannot be deferred — see the warning below. The build fails if the tag has no matching section.
+4. Commit the bump and the notes (e.g. `git commit -m "chore: set version to 3.1.0"`).
+5. Push the commit, then **tag it and push the tag** — the tag is what triggers the release build:
    ```
    git tag v3.1.0
    git push origin v3.1.0
    ```
-5. Watch the run under the repo's **Actions** tab. It builds the Windows `.msi`, signs it with the
-   private key (from the secrets above), and creates a **draft** release with the installer, its
-   `.sig` signature file, and a generated `latest.json` attached.
-6. Go to **Releases** on GitHub, open the new draft, **review/edit the release notes**, confirm the
-   `.msi` + `.sig` + `latest.json` are all attached, then **click "Publish release."**
+6. Watch the run under the repo's **Actions** tab. It reads your `CHANGELOG.md` section, builds the
+   Windows `.msi`, signs it with the private key (from the secrets above), and creates a **draft**
+   release with the installer, its `.sig` signature file, and a generated `latest.json` attached.
+7. Go to **Releases** on GitHub, open the new draft, confirm the `.msi` + `.sig` + `latest.json` are
+   all attached and the notes look right, then **click "Publish release."**
    - The draft is intentional — nothing is served to existing installs until you publish it. The
      update endpoint (`.../releases/latest/download/latest.json`) only resolves to a _published_,
      non-prerelease release.
-7. Existing installs will pick up the new version next time they check (on startup, or via the
-   "Check for Updates" button in Settings, depending on how Phase 6 wires up the check).
+8. Existing installs will pick up the new version next time they check (on startup, or via the
+   "Check for Updates" button in Settings).
+
+> **Editing the release description on GitHub does not change what the update prompt shows.**
+>
+> The in-app prompt reads the `notes` field inside `latest.json`, and that file is generated during the
+> build from whatever `CHANGELOG.md` said at the time. The release description and `latest.json` are two
+> separate copies of the text; the web UI only edits the first. If you publish with the wrong notes, the
+> only ways to fix it are to replace the `latest.json` asset on that release by hand, or to ship another
+> version. So get `CHANGELOG.md` right in step 3, before tagging.
 
 ## If something goes wrong
 

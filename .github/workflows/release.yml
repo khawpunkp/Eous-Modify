@@ -28,6 +28,39 @@ jobs:
          - name: Install frontend dependencies
            run: yarn install --frozen-lockfile
 
+         # The notes have to be settled *before* the build, because tauri-action bakes releaseBody into
+         # the generated latest.json as its `notes` field — and that is what the in-app update prompt
+         # reads. Editing the release description on GitHub afterwards does not touch latest.json, so a
+         # placeholder here means every existing install sees the placeholder forever.
+         #
+         # Failing when the tag has no CHANGELOG.md section is deliberate: it makes shipping without
+         # notes impossible rather than merely discouraged.
+         - name: Read release notes from CHANGELOG.md
+           id: notes
+           shell: pwsh
+           run: |
+              $version = '${{ github.ref_name }}'.TrimStart('v')
+              $collecting = $false
+              $body = New-Object System.Collections.Generic.List[string]
+
+              foreach ($line in Get-Content CHANGELOG.md) {
+                 if ($line -match '^##\s+\[?([0-9]+\.[0-9]+\.[0-9]+)\]?') {
+                    if ($collecting) { break }
+                    if ($Matches[1] -eq $version) { $collecting = $true }
+                    continue
+                 }
+                 if ($collecting) { $body.Add($line) }
+              }
+
+              $text = ($body -join "`n").Trim()
+              if (-not $text) {
+                 throw "CHANGELOG.md has no '## $version' section. Add one before tagging."
+              }
+
+              Write-Host "Release notes for $version`n$text"
+              "notes<<CHANGELOG_EOF`n$text`nCHANGELOG_EOF" |
+                 Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
          - uses: tauri-apps/tauri-action@v1
            env:
               GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -36,6 +69,6 @@ jobs:
            with:
               tagName: ${{ github.ref_name }}
               releaseName: 'Eous Modify ${{ github.ref_name }}'
-              releaseBody: 'See RELEASE_CHECKLIST.md in the repo for what changed, or edit this before publishing.'
+              releaseBody: ${{ steps.notes.outputs.notes }}
               releaseDraft: true
               prerelease: false
