@@ -18,12 +18,15 @@ jobs:
          - uses: actions/setup-node@v4
            with:
               node-version: 22
-              cache: npm
+              cache: yarn
 
          - uses: dtolnay/rust-toolchain@stable
 
+         # yarn, not npm: the project uses yarn.lock and has no package-lock.json, so `npm ci`
+         # would fail outright. --frozen-lockfile is the yarn equivalent of `npm ci` (install
+         # exactly the lockfile, error on drift) rather than silently updating it.
          - name: Install frontend dependencies
-           run: npm ci
+           run: yarn install --frozen-lockfile
 
          - uses: tauri-apps/tauri-action@v1
            env:
