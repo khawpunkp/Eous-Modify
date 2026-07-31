@@ -1,11 +1,4 @@
-import {
-   PhUsersThree,
-   PhGhost,
-   PhShieldCheck,
-   PhCube,
-   PhPalette,
-   PhShapes,
-} from '@phosphor-icons/vue';
+import { PhUsersThree, PhGhost, PhCube, PhPalette, PhShapes, PhSword } from '@phosphor-icons/vue';
 import type { Component } from 'vue';
 
 // Shared with Sidebar.vue's nav items, so a category's page-title icon always matches whichever
@@ -13,7 +6,7 @@ import type { Component } from 'vue';
 export const CATEGORY_ICONS: Record<string, Component> = {
    npcs: PhUsersThree,
    enemies: PhGhost,
-   weapons: PhShieldCheck,
+   weapons: PhSword,
    objects: PhCube,
    ui: PhPalette,
 };

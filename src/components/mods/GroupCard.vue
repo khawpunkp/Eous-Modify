@@ -60,7 +60,9 @@ async function disband() {
          <VueTypography variant="BodyB" as="span" class="grow">
             {{ group.name }}
          </VueTypography>
-         <span class="bg-accent text-background rounded-full px-2 py-1 text-[11px] font-semibold">
+         <span
+            class="bg-primary flex size-6 items-center justify-center rounded-full text-[11px] font-semibold text-white"
+         >
             {{ group.members.length }}
          </span>
       </div>

@@ -178,7 +178,7 @@ function handleSubmit() {
                   <span
                      v-for="alias in aliases"
                      :key="alias"
-                     class="bg-primary/15 rounded-full px-3 py-1 text-sm"
+                     class="bg-primary/50 rounded-full px-3 py-1 text-sm"
                   >
                      {{ alias }}
                   </span>
@@ -257,7 +257,7 @@ function handleSubmit() {
                   <span
                      v-for="alias in aliases"
                      :key="alias"
-                     class="bg-primary/15 flex items-center gap-2 rounded-full px-2 py-1 pl-3 text-sm"
+                     class="bg-primary/50 flex items-center gap-2 rounded-full px-2 py-1 pl-3 text-sm"
                   >
                      {{ alias }}
                      <button

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { PhStack, PhCheckCircle } from '@phosphor-icons/vue';
+import { PhBoxArrowDown, PhCheckCircle } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import {
@@ -38,7 +38,7 @@ const specialityIcon = computed(() =>
                v-if="totalMods > 0"
                class="bg-primary/85 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
             >
-               <PhStack :size="16" weight="fill" />
+               <PhBoxArrowDown :size="16" weight="fill" />
                {{ totalMods }}
             </span>
             <span

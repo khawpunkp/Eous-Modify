@@ -20,10 +20,12 @@ import type { Agent, Mod } from '../../types';
 const SORT_STORAGE_KEY = 'sort_agents';
 
 const RANKS = Object.entries(RANK_ICONS).map(([key, icon]) => ({ key, icon }));
-const ATTRIBUTES = Object.entries(ATTRIBUTE_ICONS).map(([key, icon]) => ({
-   key,
-   icon,
-}));
+const ATTRIBUTES = Object.entries(ATTRIBUTE_ICONS)
+   .filter(([key]) => !['HonedEdge', 'Frost', 'AuricInk'].includes(key))
+   .map(([key, icon]) => ({
+      key,
+      icon,
+   }));
 const SPECIALITIES = Object.entries(SPECIALITY_ICONS).map(([key, icon]) => ({
    key,
    icon,
@@ -93,12 +95,31 @@ function countOf(agent: Agent) {
 
 const visibleAgents = computed(() => {
    const query = search.value.trim().toLowerCase();
+   const attributeGroups: Record<string, string[]> = {
+      Physical: ['Physical', 'HonedEdge'],
+      Ice: ['Ice', 'Frost'],
+      Ether: ['Ether', 'AuricInk'],
+   };
+
    const filtered = agentsStore.agents.filter((agent) => {
       if (query && !agent.name.toLowerCase().includes(query)) return false;
+
       const details = parseAgentDetails(agent.details);
+
       if (selectedRank.value && details.rank !== selectedRank.value) return false;
-      if (selectedAttribute.value && details.attribute !== selectedAttribute.value) return false;
+
+      if (selectedAttribute.value) {
+         const validAttributes = attributeGroups[selectedAttribute.value] || [
+            selectedAttribute.value,
+         ];
+
+         if (!validAttributes.includes(details.attribute)) {
+            return false;
+         }
+      }
+
       if (selectedSpeciality.value && details.speciality !== selectedSpeciality.value) return false;
+
       return true;
    });
 

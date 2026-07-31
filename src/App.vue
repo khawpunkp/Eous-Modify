@@ -13,7 +13,7 @@ onMounted(async () => {
    // Silent startup check — just populates updaterStore.update for the Sidebar badge.
    // No modal pops up unprompted; the user opens it via the badge/Settings.
    // check() never rejects (errors are caught internally onto updaterStore.errorMessage).
-   updaterStore.check();
+   await updaterStore.check();
 
    // Land on Settings when either path is still unconfigured: nothing in the app works without the
    // mods folder, and Quick Launch needs the game executable.
@@ -21,7 +21,7 @@ onMounted(async () => {
       settingsStore.fetch('mods_folder_path'),
       settingsStore.fetch('game_executable_path'),
    ]);
-   if (!modsFolder || !gameExecutable) router.push('/settings');
+   if (!modsFolder || !gameExecutable || Boolean(updaterStore.update)) router.push('/settings');
 });
 </script>
 

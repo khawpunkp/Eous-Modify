@@ -44,6 +44,7 @@ export const ATTRIBUTE_ICONS: Record<string, string> = {
    Ice: '/images/filters/zzz/ice.webp',
    Frost: '/images/filters/zzz/frost.webp',
    Electric: '/images/filters/zzz/electric.webp',
+   Wind: '/images/filters/zzz/wind.webp',
    Ether: '/images/filters/zzz/ether.webp',
    AuricInk: '/images/filters/zzz/auric-ink.webp',
    Lumiflux: '/images/filters/zzz/lumiflux.webp',

@@ -23,11 +23,11 @@ import ImportModal from '../mods/ImportModal.vue';
 
 const navItems = [
    { label: 'Agents', to: '/agents', icon: PhUsers },
+   { label: 'UI', to: '/categories/ui', icon: CATEGORY_ICONS.ui },
    { label: 'NPCs', to: '/categories/npcs', icon: CATEGORY_ICONS.npcs },
    { label: 'Enemies', to: '/categories/enemies', icon: CATEGORY_ICONS.enemies },
    { label: 'Weapons', to: '/categories/weapons', icon: CATEGORY_ICONS.weapons },
    { label: 'Objects', to: '/categories/objects', icon: CATEGORY_ICONS.objects },
-   { label: 'UI', to: '/categories/ui', icon: CATEGORY_ICONS.ui },
    { label: 'Other', to: '/other', icon: PhDotsThreeCircle },
    { label: 'Settings', to: '/settings', icon: PhGear },
 ];

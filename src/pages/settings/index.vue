@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getVersion } from '@tauri-apps/api/app';
-import { PhGear, PhWarning } from '@phosphor-icons/vue';
+import { PhBoxArrowDown, PhFolderOpen, PhGear, PhWarning } from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useSettingsStore } from '../../stores/settings';
@@ -23,6 +23,8 @@ onMounted(async () => {
    modsFolderPath.value = await settingsStore.fetch('mods_folder_path');
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
+   await updaterStore.check();
+   //  if (Boolean(updaterStore.update)) showUpdateModal.value = true;
 });
 
 async function chooseFolder() {
@@ -81,7 +83,10 @@ async function checkForUpdates() {
                   {{ modsFolderPath ?? 'Not set' }}
                </VueTypography>
                <div class="col-span-2 flex justify-end">
-                  <VueButton type="button" @click="chooseFolder">Choose Folder</VueButton>
+                  <VueButton type="button" @click="chooseFolder">
+                     <PhFolderOpen :size="24" weight="fill" />
+                     Choose Folder
+                  </VueButton>
                </div>
             </div>
 
@@ -104,6 +109,7 @@ async function checkForUpdates() {
                </VueTypography>
                <div class="col-span-2 flex justify-end">
                   <VueButton type="button" @click="chooseGameExecutable">
+                     <PhFolderOpen :size="24" weight="fill" />
                      Choose Executable
                   </VueButton>
                </div>
@@ -114,44 +120,43 @@ async function checkForUpdates() {
             <div class="flex items-center justify-between">
                <div>
                   <VueTypography variant="TitleB" as="h2" class="mb-2">Updates</VueTypography>
-                  <VueTypography variant="BodyR" as="p" class="text-muted-foreground mb-4">
+                  <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
                      Currently running v{{ currentVersion }}
                   </VueTypography>
                </div>
                <div class="flex items-center justify-start gap-3">
                   <VueButton
+                     v-if="!updaterStore.update"
                      type="button"
                      :disabled="updaterStore.isChecking"
                      @click="checkForUpdates"
                   >
                      {{ updaterStore.isChecking ? 'Checking…' : 'Check for Updates' }}
                   </VueButton>
-                  <VueButton
-                     v-if="updaterStore.update"
-                     type="button"
-                     @click="showUpdateModal = true"
-                  >
+                  <VueButton v-else type="button" @click="showUpdateModal = true">
+                     <PhBoxArrowDown :size="24" weight="fill" />
                      Update Available: v{{ updaterStore.update.version }}
                   </VueButton>
                </div>
             </div>
-
-            <VueTypography
-               v-if="noUpdateFound"
-               variant="CaptionR"
-               as="p"
-               class="text-muted-foreground"
-            >
-               You're up to date.
-            </VueTypography>
-            <VueTypography
-               v-if="updaterStore.errorMessage"
-               variant="CaptionR"
-               as="p"
-               class="text-destructive"
-            >
-               {{ updaterStore.errorMessage }}
-            </VueTypography>
+            <div v-if="!showUpdateModal" class="mt-2">
+               <VueTypography
+                  v-if="updaterStore.errorMessage"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-destructive"
+               >
+                  {{ updaterStore.errorMessage }}
+               </VueTypography>
+               <VueTypography
+                  v-else-if="noUpdateFound"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-muted-foreground"
+               >
+                  You're up to date.
+               </VueTypography>
+            </div>
          </div>
       </div>
 
