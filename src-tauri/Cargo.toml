@@ -40,11 +40,14 @@ zip = "0.6"
 sevenz-rust = "0.6.1"
 unrar = "=0.5.8"
 
-# Only for ShellExecuteW's "runas" verb, used to re-launch the game through the UAC prompt when it
-# demands elevation. Target-gated so a non-Windows `cargo check` doesn't try to pull it in.
+# ShellExecuteW's "runas" verb re-launches the game through the UAC prompt when it demands elevation;
+# SendInput synthesizes the F10 that makes XXMI reload; ToolHelp answers "is the game actually
+# running", which gates both the keypress and the wait for 3DMigoto to flush its config.
+# Target-gated so a non-Windows `cargo check` doesn't try to pull it in.
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = [
    "Win32_Foundation",
+   "Win32_System_Diagnostics_ToolHelp",
    "Win32_UI_Input_KeyboardAndMouse",
    "Win32_UI_Shell",
    "Win32_UI_WindowsAndMessaging",

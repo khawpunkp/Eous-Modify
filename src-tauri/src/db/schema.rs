@@ -69,6 +69,20 @@ CREATE TABLE IF NOT EXISTS mod_group_members (
     FOREIGN KEY (mod_id)   REFERENCES mods(id)        ON DELETE CASCADE
 );
 
+-- Persistent 3DMigoto variables ($swapvar and friends) parked here while a mod is disabled.
+--
+-- 3DMigoto keys these by the mod's ini path, so the DISABLED_ rename changes the key and it discards
+-- the entry from d3dx_user.ini as unrecognised. Snapshotting on disable and writing the values back
+-- on enable is what keeps a mod's in-game toggle choices across an off/on cycle.
+CREATE TABLE IF NOT EXISTS mod_persisted_vars (
+    mod_id  INTEGER NOT NULL,
+    -- Full d3dx_user.ini key, e.g. `$\mods\robot aria\ariahumanzzz.ini\facea2`.
+    var_key TEXT NOT NULL,
+    value   TEXT NOT NULL,
+    PRIMARY KEY (mod_id, var_key),
+    FOREIGN KEY (mod_id) REFERENCES mods(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS settings (
     key   TEXT PRIMARY KEY NOT NULL,
     value TEXT NOT NULL

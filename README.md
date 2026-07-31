@@ -74,6 +74,12 @@ you can edit a mod to assign it properly.
 preview image, or move it to a different agent/category), view its keybinds, open its folder, or
 delete it — deleting removes the folder from disk.
 
+**In-game toggle choices survive being disabled.** 3DMigoto stores a mod's `persist` variables — the
+outfit/hair/face switches you cycle with its keybinds — under a key derived from the mod's folder path,
+so the `DISABLED_` rename makes it discard them as unrecognised. Disabling therefore parks those values
+in the app's database and re-enabling writes them back to `d3dx_user.ini`, so a mod comes back set up
+the way you left it. Mods declaring their own `namespace` were never affected and are left alone.
+
 **Reloading in-game.** Enabling and disabling only renames folders on disk, so the running game keeps
 showing what it loaded at startup until 3DMigoto re-reads the Mods folder — which it does on F10. Turn
 on **Reload mods in-game** in Settings and that keypress is sent for you after every toggle. It needs

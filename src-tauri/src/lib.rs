@@ -4,6 +4,7 @@ mod keybinds;
 mod mod_groups;
 mod models;
 mod mods;
+mod persisted_vars;
 mod scanner;
 mod xxmi_config;
 

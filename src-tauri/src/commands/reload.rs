@@ -50,16 +50,109 @@ fn press_f10() -> Result<(), String> {
     Ok(())
 }
 
+/// Whether a process whose executable name matches `exe_path` is running, or `None` when we can't
+/// tell — an unset path, or an API that refused to answer.
+///
+/// Used to avoid synthesizing F10 into whatever window happens to be focused when the game isn't even
+/// running. `None` means "carry on regardless" rather than "don't", so a detection failure degrades to
+/// the old unconditional behaviour instead of silently disabling reloads.
+#[cfg(windows)]
+fn game_is_running(exe_path: Option<&str>) -> Option<bool> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
+    };
+
+    let exe_name = std::path::Path::new(exe_path?).file_name()?.to_string_lossy().to_lowercase();
+
+    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }.ok()?;
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..Default::default()
+    };
+
+    let mut found = false;
+    if unsafe { Process32FirstW(snapshot, &mut entry) }.is_ok() {
+        loop {
+            let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+            let name = String::from_utf16_lossy(&entry.szExeFile[..len]).to_lowercase();
+            if name == exe_name {
+                found = true;
+                break;
+            }
+            if unsafe { Process32NextW(snapshot, &mut entry) }.is_err() {
+                break;
+            }
+        }
+    }
+
+    unsafe { CloseHandle(snapshot) }.ok();
+    Some(found)
+}
+
 /// Sends F10 so XXMI reloads its mods.
+///
+/// Skipped when we can see the game isn't running: `SendInput` writes to the global input stream, so
+/// an F10 sent with the game closed lands in whatever application the user is actually using.
 #[tauri::command]
-pub fn reload_xxmi() -> Result<(), String> {
+pub fn reload_xxmi(state: State<DbState>) -> Result<(), String> {
     #[cfg(windows)]
     {
+        let exe = game_executable(&state)?;
+        if game_is_running(exe.as_deref()) == Some(false) {
+            return Ok(());
+        }
         press_f10()
     }
 
     #[cfg(not(windows))]
-    Ok(())
+    {
+        let _ = state;
+        Ok(())
+    }
+}
+
+/// How long to wait for 3DMigoto to write `d3dx_user.ini` after a reload keypress, and how often to
+/// look. Bounded because a game that ignores the keypress must not hang the toggle; polling the
+/// modified time rather than sleeping a fixed interval keeps a fast machine fast.
+#[cfg(windows)]
+const FLUSH_TIMEOUT_MS: u64 = 1_000;
+#[cfg(windows)]
+const FLUSH_POLL_MS: u64 = 20;
+
+/// Asks 3DMigoto to write its persistent variables to disk, and waits until it has.
+///
+/// A reload is what makes 3DMigoto flush `d3dx_user.ini`; until then, variables the user changed with
+/// an in-game keybind exist only in its memory, and snapshotting the file would capture stale values.
+/// Does nothing when the game isn't running — there is nothing to flush, and no point waiting.
+#[allow(unused_variables)]
+pub fn flush_persisted_vars(mods_folder: &Path, game_exe: Option<&str>) {
+    #[cfg(windows)]
+    {
+        if game_is_running(game_exe) != Some(true) {
+            return;
+        }
+
+        let Some(user_config) = crate::persisted_vars::user_config_path(mods_folder) else {
+            return;
+        };
+        let modified_before = std::fs::metadata(&user_config).and_then(|m| m.modified()).ok();
+
+        if press_f10().is_err() {
+            return;
+        }
+
+        let deadline =
+            std::time::Instant::now() + std::time::Duration::from_millis(FLUSH_TIMEOUT_MS);
+        while std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(FLUSH_POLL_MS));
+            let modified_now = std::fs::metadata(&user_config).and_then(|m| m.modified()).ok();
+            if modified_now.is_some() && modified_now != modified_before {
+                return;
+            }
+        }
+    }
 }
 
 /// Reads the configured Mods folder, or `None` when the user hasn't set one yet.
@@ -72,6 +165,36 @@ fn mods_folder(state: &State<DbState>) -> Result<Option<String>, String> {
     )
     .optional()
     .map_err(|e| e.to_string())
+}
+
+/// Reads the configured game executable, or `None` when the user hasn't set one yet.
+pub fn game_executable(state: &State<DbState>) -> Result<Option<String>, String> {
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    game_executable_from(&conn)
+}
+
+pub fn game_executable_from(conn: &rusqlite::Connection) -> Result<Option<String>, String> {
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = 'game_executable_path'",
+        [],
+        |row| row.get(0),
+    )
+    .optional()
+    .map_err(|e| e.to_string())
+}
+
+/// Whether the user opted into us synthesizing keypresses at all.
+pub fn auto_reload_enabled(conn: &rusqlite::Connection) -> bool {
+    conn.query_row(
+        "SELECT value FROM settings WHERE key = 'auto_reload_on_toggle'",
+        [],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .as_deref()
+        == Some("true")
 }
 
 /// Turns 3DMigoto's background-hotkey handling on or off, so a reload sent while this app is the
