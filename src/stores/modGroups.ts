@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { invoke } from '@tauri-apps/api/core';
 import { useModsStore } from './mods';
+import { maybeReloadXxmi } from '../utils/reload';
 import type { ModGroup } from '../types';
 
 export const useModGroupsStore = defineStore('modGroups', {
@@ -33,6 +34,7 @@ export const useModGroupsStore = defineStore('modGroups', {
             group.isEnabled = isEnabled;
             group.members.forEach((m) => (m.isEnabled = isEnabled));
          }
+         await maybeReloadXxmi();
          return isEnabled;
       },
       async update(groupId: number, name: string, baseImage: string | null) {

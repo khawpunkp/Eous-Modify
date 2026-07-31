@@ -5,7 +5,9 @@ import { getVersion } from '@tauri-apps/api/app';
 import { PhBoxArrowDown, PhFolderOpen, PhGear, PhWarning } from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
+import { AUTO_RELOAD_KEY } from '../../utils/reload';
 import { useUpdaterStore } from '../../stores/updater';
 import UpdateModal from '../../components/UpdateModal.vue';
 
@@ -23,9 +25,17 @@ onMounted(async () => {
    modsFolderPath.value = await settingsStore.fetch('mods_folder_path');
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
+   autoReload.value = (await settingsStore.fetch(AUTO_RELOAD_KEY)) === 'true';
    await updaterStore.check();
    if (Boolean(updaterStore.update)) showUpdateModal.value = true;
 });
+
+const autoReload = ref(false);
+
+async function setAutoReload(enabled: boolean) {
+   autoReload.value = enabled;
+   await settingsStore.set(AUTO_RELOAD_KEY, String(enabled));
+}
 
 async function chooseFolder() {
    const path = await open({ directory: true, multiple: false });
@@ -113,6 +123,26 @@ async function checkForUpdates() {
                      Choose Executable
                   </VueButton>
                </div>
+            </div>
+         </div>
+
+         <div class="bg-card w-full rounded-lg border border-white/10 p-6">
+            <div class="flex items-center justify-between gap-6">
+               <div>
+                  <VueTypography variant="TitleB" as="h2" class="mb-2">
+                     Reload mods in-game
+                  </VueTypography>
+                  <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
+                     After toggling a mod, send F10 so XXMI reloads without you alt-tabbing. Only
+                     works while the game is the focused window — if this app is in front, the
+                     keypress is skipped, so press F10 yourself in that case.
+                  </VueTypography>
+               </div>
+               <VueSwitch
+                  :model-value="autoReload"
+                  :title="autoReload ? 'Enabled' : 'Disabled'"
+                  @update:model-value="setAutoReload"
+               />
             </div>
          </div>
 
