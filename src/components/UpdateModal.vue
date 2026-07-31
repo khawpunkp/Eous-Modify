@@ -34,10 +34,10 @@ async function handleRestart() {
       >
          <div>
             <VueTypography variant="TitleB" as="h2">
-               Update Available: {{ updaterStore.update?.version }}
+               Update Available: v{{ updaterStore.update?.version }}
             </VueTypography>
             <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               Currently running version:{{ updaterStore.update?.currentVersion }}
+               Currently running: v{{ updaterStore.update?.currentVersion }}
             </VueTypography>
          </div>
          <VueTypography

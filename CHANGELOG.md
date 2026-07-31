@@ -7,6 +7,14 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
 
+## 0.0.3
+
+Fixed
+
+- Release notes now reach this update prompt. Previous versions showed a placeholder here no matter
+  what the release page said, because the notes are baked into the update manifest when the installer
+  is built, and editing the release page afterwards does not touch it.
+
 ## 0.0.2
 
 Fixed
