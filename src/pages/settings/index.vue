@@ -133,9 +133,10 @@ async function checkForUpdates() {
                      Reload mods in-game
                   </VueTypography>
                   <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
-                     After toggling a mod, send F10 so XXMI reloads without you alt-tabbing. Only
-                     works while the game is the focused window — if this app is in front, the
-                     keypress is skipped, so press F10 yourself in that case.
+                     Only works while the game is the focused window
+                     <br />
+                     if this app is in front, the keypress is skipped, so press F10 yourself in that
+                     case.
                   </VueTypography>
                </div>
                <VueSwitch
