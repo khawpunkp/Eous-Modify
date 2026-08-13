@@ -5,6 +5,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import {
    PhArrowsClockwise,
    PhBoxArrowDown,
+   PhCaretRight,
    PhFolderOpen,
    PhGear,
    PhWarning,
@@ -14,6 +15,7 @@ import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
 import { AUTO_RELOAD_KEY, setXxmiBackgroundKeys } from '../../utils/reload';
+import { CHANGELOG } from '../../utils/changelog';
 import { useUpdaterStore } from '../../stores/updater';
 import UpdateModal from '../../components/UpdateModal.vue';
 
@@ -26,6 +28,11 @@ const gameExecutablePath = ref<string | null>(null);
 const currentVersion = ref<string>('');
 const showUpdateModal = ref(false);
 const noUpdateFound = ref(false);
+
+// Bundled with the build rather than fetched, so it describes the version actually installed and
+// works offline. Collapsed by default to keep this page short as the list grows.
+const changelog = CHANGELOG;
+const showChangelog = ref(false);
 
 onMounted(async () => {
    modsFolderPath.value = await settingsStore.fetch('mods_folder_path');
@@ -171,7 +178,7 @@ async function checkForUpdates() {
             <div class="flex items-center justify-between">
                <div class="flex flex-col gap-2">
                   <VueTypography variant="TitleB" as="h2">Updates</VueTypography>
-                  <VueTypography variant="BodyR" as="p" class="text-muted-foreground">
+                  <VueTypography variant="BodyR" as="p" class="text-white">
                      Currently running v{{ currentVersion }}
                   </VueTypography>
                </div>
@@ -212,6 +219,47 @@ async function checkForUpdates() {
                >
                   You're up to date.
                </VueTypography>
+            </div>
+
+            <div
+               v-if="changelog.length > 0"
+               class="flex flex-col gap-4 border-t border-white/5 pt-4"
+            >
+               <button
+                  type="button"
+                  class="text-foreground/70 hover:text-primary flex cursor-pointer items-center gap-2 self-start transition-colors"
+                  @click="showChangelog = !showChangelog"
+                  v-auto-animate
+               >
+                  <PhCaretRight
+                     :size="20"
+                     weight="bold"
+                     class="transition-transform"
+                     :class="{ 'rotate-90': showChangelog }"
+                  />
+                  <VueTypography variant="BodyB" as="span">Changelog</VueTypography>
+               </button>
+
+               <div v-if="showChangelog" class="flex max-h-100 flex-col gap-5 overflow-y-auto pr-2">
+                  <div v-for="entry in changelog" :key="entry.version" class="flex flex-col gap-2">
+                     <div class="flex items-center gap-2">
+                        <VueTypography variant="BodyB" as="h3">v{{ entry.version }}</VueTypography>
+                        <span
+                           v-if="entry.version === currentVersion"
+                           class="bg-primary/85 rounded-full px-2 py-1 text-xs font-bold text-white"
+                        >
+                           current
+                        </span>
+                     </div>
+                     <VueTypography
+                        variant="CaptionR"
+                        as="p"
+                        class="text-muted-foreground whitespace-pre-wrap"
+                     >
+                        {{ entry.body }}
+                     </VueTypography>
+                  </div>
+               </div>
             </div>
          </div>
       </div>
