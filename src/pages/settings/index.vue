@@ -172,6 +172,9 @@ async function checkForUpdates() {
             <div class="flex items-center justify-between gap-6">
                <div>
                   <VueTypography variant="TitleB" as="h2">Reload mods in-game</VueTypography>
+                  <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+                     Reloads your mods in-game when you toggle one.
+                  </VueTypography>
                </div>
                <VueSwitch
                   :model-value="autoReload"
@@ -179,10 +182,7 @@ async function checkForUpdates() {
                   @update:model-value="setAutoReload"
                />
             </div>
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               Sends F10 after a toggle so XXMI reloads without restarting the game. Adjusts your
-               XXMI d3dx.ini so the keypress registers while this window is in front.
-            </VueTypography>
+
             <VueTypography
                v-if="autoReloadError"
                variant="CaptionR"
@@ -197,6 +197,9 @@ async function checkForUpdates() {
             <div class="flex items-center justify-between gap-6">
                <div>
                   <VueTypography variant="TitleB" as="h2">Skip XXMI Launcher</VueTypography>
+                  <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+                     Quick Launch starts the game directly instead of opening the XXMI launcher.
+                  </VueTypography>
                </div>
                <VueSwitch
                   :model-value="skipXxmiLauncher"
@@ -204,9 +207,6 @@ async function checkForUpdates() {
                   @update:model-value="setSkipXxmiLauncher"
                />
             </div>
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               Quick Launch starts the game directly instead of opening the XXMI launcher.
-            </VueTypography>
             <VueTypography
                v-if="skipXxmiLauncher && !gameExeIsXxmiLauncher"
                variant="CaptionR"
