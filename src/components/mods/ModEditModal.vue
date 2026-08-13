@@ -151,7 +151,7 @@ function handleSubmit() {
       >
          <VueTypography variant="TitleB" as="h2">Edit Mod</VueTypography>
          <div class="flex flex-col items-center gap-4">
-            <div class="flex flex-col items-center gap-2" v-auto-animate>
+            <div class="flex w-full flex-col items-center gap-2" v-auto-animate>
                <div class="group relative w-full">
                   <img
                      :src="previewSrc ?? '/images/placeholder.jpg'"
@@ -169,7 +169,11 @@ function handleSubmit() {
                      <PhTrash :size="20" weight="fill" />
                   </button>
                </div>
-               <VueTypography variant="CaptionR" as="p" class="text-muted-foreground text-center">
+               <VueTypography
+                  variant="CaptionR"
+                  as="p"
+                  class="text-muted-foreground w-full text-center"
+               >
                   {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
                </VueTypography>
                <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
@@ -182,7 +186,7 @@ function handleSubmit() {
                   v-if="dropError"
                   variant="CaptionR"
                   as="p"
-                  class="text-destructive text-center"
+                  class="text-destructive w-full text-center"
                >
                   {{ dropError }}
                </VueTypography>
