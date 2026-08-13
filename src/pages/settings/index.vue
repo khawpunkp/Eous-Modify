@@ -168,54 +168,59 @@ async function checkForUpdates() {
             </div>
          </div>
 
-         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
-            <div class="flex items-center justify-between gap-6">
-               <div>
-                  <VueTypography variant="TitleB" as="h2">Reload mods in-game</VueTypography>
-                  <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-                     Reloads your mods in-game when you toggle one.
-                  </VueTypography>
+         <div class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6">
+            <VueTypography variant="TitleB" as="h2">Preferences</VueTypography>
+
+            <div class="flex flex-col gap-2">
+               <div class="flex items-center justify-between gap-6">
+                  <div>
+                     <VueTypography variant="BodyB" as="h3">Reload mods in-game</VueTypography>
+                     <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+                        Reloads your mods in-game when you toggle one.
+                     </VueTypography>
+                  </div>
+                  <VueSwitch
+                     :model-value="autoReload"
+                     :title="autoReload ? 'Enabled' : 'Disabled'"
+                     @update:model-value="setAutoReload"
+                  />
                </div>
-               <VueSwitch
-                  :model-value="autoReload"
-                  :title="autoReload ? 'Enabled' : 'Disabled'"
-                  @update:model-value="setAutoReload"
-               />
+               <VueTypography
+                  v-if="autoReloadError"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-destructive"
+               >
+                  {{ autoReloadError }}
+               </VueTypography>
             </div>
 
-            <VueTypography
-               v-if="autoReloadError"
-               variant="CaptionR"
-               as="p"
-               class="text-destructive"
-            >
-               {{ autoReloadError }}
-            </VueTypography>
-         </div>
+            <div class="h-px w-full bg-white/10" />
 
-         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
-            <div class="flex items-center justify-between gap-6">
-               <div>
-                  <VueTypography variant="TitleB" as="h2">Skip XXMI Launcher</VueTypography>
-                  <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-                     Quick Launch starts the game directly instead of opening the XXMI launcher.
-                  </VueTypography>
+            <div class="flex flex-col gap-2">
+               <div class="flex items-center justify-between gap-6">
+                  <div>
+                     <VueTypography variant="BodyB" as="h3">Skip XXMI Launcher</VueTypography>
+                     <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+                        Quick Launch starts the game directly instead of opening the XXMI launcher.
+                     </VueTypography>
+                  </div>
+                  <VueSwitch
+                     :model-value="skipXxmiLauncher"
+                     :title="skipXxmiLauncher ? 'Enabled' : 'Disabled'"
+                     @update:model-value="setSkipXxmiLauncher"
+                  />
                </div>
-               <VueSwitch
-                  :model-value="skipXxmiLauncher"
-                  :title="skipXxmiLauncher ? 'Enabled' : 'Disabled'"
-                  @update:model-value="setSkipXxmiLauncher"
-               />
+               <VueTypography
+                  v-if="skipXxmiLauncher && !gameExeIsXxmiLauncher"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-accent"
+               >
+                  Your Game Executable isn't XXMI Launcher, so this has no effect — the flags it
+                  passes are the launcher's own.
+               </VueTypography>
             </div>
-            <VueTypography
-               v-if="skipXxmiLauncher && !gameExeIsXxmiLauncher"
-               variant="CaptionR"
-               as="p"
-               class="text-accent"
-            >
-               Your Game Executable isn't XXMI Launcher, so this has no effect — the flags it passes
-               are the launcher's own.
-            </VueTypography>
          </div>
 
          <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
