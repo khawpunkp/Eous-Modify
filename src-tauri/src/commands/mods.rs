@@ -125,6 +125,37 @@ pub fn get_mod_preview(mod_id: i64, state: State<DbState>) -> Result<Option<Stri
     crate::commands::images::read_image_as_data_url(path.to_string_lossy().to_string()).map(Some)
 }
 
+/// The image the mod itself ships with, ignoring any preview this app saved.
+///
+/// `find_preview_image` only matches the conventional names a mod author uses — preview, icon,
+/// thumbnail — and never our `mod_preview.*`, so this is precisely what removing a custom image falls
+/// back to. That lets the editor show the real result before the save happens, rather than a
+/// placeholder that misrepresents it.
+#[tauri::command]
+pub fn get_mod_default_preview(mod_id: i64, state: State<DbState>) -> Result<Option<String>, String> {
+    let mods_path = get_mods_folder(&state)?;
+
+    let folder_name: String = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row("SELECT folder_name FROM mods WHERE id = ?1", params![mod_id], |row| {
+            row.get(0)
+        })
+        .map_err(|e| e.to_string())?
+    };
+
+    let Some(mod_dir) = mods::current_mod_path(&mods_path, &folder_name) else {
+        return Ok(None);
+    };
+    let Some(filename) = crate::scanner::deduce::find_preview_image(&mod_dir) else {
+        return Ok(None);
+    };
+
+    crate::commands::images::read_image_as_data_url(
+        mod_dir.join(filename).to_string_lossy().to_string(),
+    )
+    .map(Some)
+}
+
 #[tauri::command]
 pub fn get_mod_keybinds(mod_id: i64, state: State<DbState>) -> Result<Vec<KeybindInfo>, String> {
     let mods_path = get_mods_folder(&state)?;

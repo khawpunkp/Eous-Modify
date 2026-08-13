@@ -91,12 +91,19 @@ function applyImage(dataUrl: string) {
    clearImage.value = false;
 }
 
-// Falls back to the placeholder rather than the mod's own image: what a mod ships with is only known
-// on disk, and reading it just to preview an undo would cost a round trip for a rare action.
-function useDefaultImage() {
+// Shows what saving would actually produce — the mod's own image where it ships one — rather than a
+// placeholder that misrepresents the result.
+async function useDefaultImage() {
    newImageDataUrl.value = null;
    previewSrc.value = null;
    clearImage.value = true;
+   try {
+      previewSrc.value = await invoke<string | null>('get_mod_default_preview', {
+         modId: props.mod.id,
+      });
+   } catch {
+      previewSrc.value = null;
+   }
 }
 
 async function pickImage() {
@@ -135,42 +142,35 @@ function handleSubmit() {
          @submit.prevent="handleSubmit"
       >
          <VueTypography variant="TitleB" as="h2">Edit Mod</VueTypography>
-         <div class="flex flex-col items-center gap-4" v-auto-animate>
-            <div class="group relative w-full">
-               <img
-                  :src="previewSrc ?? '/images/placeholder.jpg'"
-                  alt=""
-                  class="aspect-video w-full rounded-lg border object-cover transition-colors"
-                  :class="isDraggingOver ? 'border-primary border-2' : 'border-white/10'"
-               />
-               <button
-                  v-if="canClearImage"
-                  type="button"
-                  class="bg-background/80 text-foreground/70 hover:text-destructive absolute top-2 right-2 cursor-pointer rounded-full p-2 opacity-0 transition-all group-hover:opacity-100"
-                  title="Use default image"
-                  @click="useDefaultImage"
-               >
-                  <PhTrash :size="20" weight="fill" />
-               </button>
+         <div class="flex flex-col items-center gap-4">
+            <div class="flex flex-col items-center gap-2" v-auto-animate>
+               <div class="group relative w-full">
+                  <img
+                     :src="previewSrc ?? '/images/placeholder.jpg'"
+                     alt=""
+                     class="aspect-video w-full rounded-lg border object-cover transition-colors"
+                     :class="isDraggingOver ? 'border-primary border-2' : 'border-white/10'"
+                  />
+                  <button
+                     v-if="canClearImage"
+                     type="button"
+                     class="bg-background/80 text-foreground/70 hover:text-destructive absolute top-2 right-2 cursor-pointer rounded-full p-2 opacity-0 transition-all group-hover:opacity-100"
+                     title="Use default image"
+                     @click="useDefaultImage"
+                  >
+                     <PhTrash :size="20" weight="fill" />
+                  </button>
+               </div>
+               <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+                  {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
+               </VueTypography>
+               <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
+                  Choose New Image
+               </VueButton>
+               <VueTypography v-if="dropError" variant="CaptionR" as="p" class="text-destructive">
+                  {{ dropError }}
+               </VueTypography>
             </div>
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
-            </VueTypography>
-            <VueTypography
-               v-if="clearImage"
-               variant="CaptionR"
-               as="p"
-               class="text-muted-foreground"
-            >
-               Saving restores whatever image the mod ships with.
-            </VueTypography>
-            <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
-               Choose New Image
-            </VueButton>
-            <VueTypography v-if="dropError" variant="CaptionR" as="p" class="text-destructive">
-               {{ dropError }}
-            </VueTypography>
-
             <VueInput
                id="mod-name"
                v-model="form.name"

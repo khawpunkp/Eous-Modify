@@ -241,7 +241,7 @@ function handleSubmit() {
       </div>
 
       <form v-else @submit.prevent="handleSubmit" class="flex gap-6">
-         <div class="flex h-full w-60 flex-col items-center gap-4" v-auto-animate>
+         <div class="flex h-full w-60 flex-col items-center gap-2" v-auto-animate>
             <div class="group relative size-60">
                <img
                   :src="resolveAgentImageSrc(previewImage)"
