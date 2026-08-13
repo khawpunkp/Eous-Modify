@@ -1,3 +1,4 @@
+use rusqlite::OptionalExtension;
 use tauri::{AppHandle, State};
 use tauri_plugin_shell::process::CommandEvent;
 use tauri_plugin_shell::ShellExt;
@@ -8,12 +9,29 @@ use crate::DbState;
 /// arrive later as a `CommandEvent::Error`, so both paths below check for it.
 const ELEVATION_REQUIRED: &str = "os error 740";
 
+/// XXMI Launcher's own command line: `--nogui` starts the game without showing its window, and
+/// `--xxmi <tag>` selects the model importer. `ZZMI` is Zenless Zone Zero's, which is the only game
+/// this app supports. Same flags FlairX-Mod-Manager passes for the equivalent feature.
+const XXMI_SKIP_LAUNCHER_ARGS: [&str; 3] = ["--nogui", "--xxmi", "ZZMI"];
+
+/// Whether the configured executable is XXMI Launcher rather than a game the user pointed at directly.
+///
+/// The flags above belong to the launcher. Passing them to the game itself would at best be ignored
+/// and at worst confuse its own argument parsing, so the setting only takes effect when the target
+/// really is the launcher.
+fn is_xxmi_launcher(path: &str) -> bool {
+    std::path::Path::new(path)
+        .file_stem()
+        .map(|stem| stem.to_string_lossy().to_lowercase().contains("xxmi"))
+        .unwrap_or(false)
+}
+
 /// Re-launches the target through `ShellExecuteW`'s `runas` verb, which raises the UAC prompt. A
 /// non-elevated process can't spawn an elevated child any other way on Windows — hence the shell
 /// round-trip rather than a plain `Command`. Ported from the pre-rebuild app's
 /// `launch_executable_elevated`.
 #[cfg(windows)]
-fn launch_elevated(path: &str) -> Result<(), String> {
+fn launch_elevated(path: &str, args: &[&str]) -> Result<(), String> {
     use std::os::windows::ffi::OsStrExt;
     use windows::core::PCWSTR;
     use windows::Win32::Foundation::{ERROR_CANCELLED, HWND};
@@ -27,12 +45,17 @@ fn launch_elevated(path: &str) -> Result<(), String> {
     let path_wide = wide(path);
     let verb_wide = wide("runas");
 
+    // Kept alive for the duration of the call; ShellExecuteW takes one parameter string, not a list.
+    let params = args.join(" ");
+    let params_wide = wide(&params);
+    let params_ptr = if params.is_empty() { PCWSTR::null() } else { PCWSTR(params_wide.as_ptr()) };
+
     let result = unsafe {
         ShellExecuteW(
             Some(HWND::default()),
             PCWSTR(verb_wide.as_ptr()),
             PCWSTR(path_wide.as_ptr()),
-            None,
+            params_ptr,
             None,
             SW_SHOWNORMAL,
         )
@@ -57,7 +80,7 @@ fn launch_elevated(path: &str) -> Result<(), String> {
 }
 
 #[cfg(not(windows))]
-fn launch_elevated(_path: &str) -> Result<(), String> {
+fn launch_elevated(_path: &str, _args: &[&str]) -> Result<(), String> {
     Err("The game requires administrator privileges, which this platform can't request.".to_string())
 }
 
@@ -70,20 +93,32 @@ fn launch_elevated(_path: &str) -> Result<(), String> {
 /// a static allowlist entry couldn't pre-declare a path the user only chooses at runtime anyway.
 #[tauri::command]
 pub async fn launch_game(state: State<'_, DbState>, app_handle: AppHandle) -> Result<(), String> {
-    let exe_path: String = {
+    let (exe_path, skip_launcher) = {
         let conn = state.0.lock().map_err(|e| e.to_string())?;
-        conn.query_row("SELECT value FROM settings WHERE key = 'game_executable_path'", [], |row| row.get(0))
-            .map_err(|_| "Game executable path is not configured. Set it in Settings first.".to_string())?
+        let exe_path: String = conn
+            .query_row("SELECT value FROM settings WHERE key = 'game_executable_path'", [], |row| row.get(0))
+            .map_err(|_| "Game executable path is not configured. Set it in Settings first.".to_string())?;
+        let skip_launcher: Option<String> = conn
+            .query_row("SELECT value FROM settings WHERE key = 'skip_xxmi_launcher'", [], |row| row.get(0))
+            .optional()
+            .map_err(|e| e.to_string())?;
+        (exe_path, skip_launcher.as_deref() == Some("true"))
+    };
+
+    let args: &[&str] = if skip_launcher && is_xxmi_launcher(&exe_path) {
+        &XXMI_SKIP_LAUNCHER_ARGS
+    } else {
+        &[]
     };
 
     // Try a normal launch first: it needs no UAC prompt, so most games start with no interruption.
     // Only if Windows refuses for lack of elevation do we escalate.
-    let (mut rx, _child) = match app_handle.shell().command(&exe_path).spawn() {
+    let (mut rx, _child) = match app_handle.shell().command(&exe_path).args(args).spawn() {
         Ok(pair) => pair,
         Err(e) => {
             let msg = e.to_string();
             return if msg.contains(ELEVATION_REQUIRED) {
-                launch_elevated(&exe_path)
+                launch_elevated(&exe_path, args)
             } else {
                 Err(format!("Failed to spawn executable: {}", msg))
             };
@@ -97,7 +132,7 @@ pub async fn launch_game(state: State<'_, DbState>, app_handle: AppHandle) -> Re
             CommandEvent::Error(e) => {
                 // Elevation can be refused after a nominally successful spawn, so retry here too.
                 if e.contains(ELEVATION_REQUIRED) {
-                    return launch_elevated(&exe_path);
+                    return launch_elevated(&exe_path, args);
                 }
                 eprintln!("[game] error event: {}", e);
             }

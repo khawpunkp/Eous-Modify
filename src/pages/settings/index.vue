@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getVersion } from '@tauri-apps/api/app';
 import {
@@ -16,6 +16,7 @@ import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
 import { AUTO_RELOAD_KEY, setXxmiBackgroundKeys } from '../../utils/reload';
 import { CHANGELOG } from '../../utils/changelog';
+import { SKIP_XXMI_LAUNCHER_KEY, isXxmiLauncherPath } from '../../utils/launcher';
 import { useUpdaterStore } from '../../stores/updater';
 import UpdateModal from '../../components/UpdateModal.vue';
 
@@ -32,19 +33,31 @@ const noUpdateFound = ref(false);
 // Bundled with the build rather than fetched, so it describes the version actually installed and
 // works offline. Collapsed by default to keep this page short as the list grows.
 const changelog = CHANGELOG;
-const showChangelog = ref(false);
+const showChangelog = ref(true);
 
 onMounted(async () => {
    modsFolderPath.value = await settingsStore.fetch('mods_folder_path');
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
    autoReload.value = (await settingsStore.fetch(AUTO_RELOAD_KEY)) === 'true';
+   skipXxmiLauncher.value = (await settingsStore.fetch(SKIP_XXMI_LAUNCHER_KEY)) === 'true';
    await updaterStore.check();
    if (Boolean(updaterStore.update)) showUpdateModal.value = true;
 });
 
 const autoReload = ref(false);
 const autoReloadError = ref<string | null>(null);
+
+const skipXxmiLauncher = ref(false);
+// The backend applies the launcher-only flags just for XXMI Launcher, so surface when the configured
+// executable means this switch does nothing — an "Enabled" switch that silently no-ops is worse than
+// one that says why.
+const gameExeIsXxmiLauncher = computed(() => isXxmiLauncherPath(gameExecutablePath.value));
+
+async function setSkipXxmiLauncher(enabled: boolean) {
+   skipXxmiLauncher.value = enabled;
+   await settingsStore.set(SKIP_XXMI_LAUNCHER_KEY, String(enabled));
+}
 
 /**
  * Editing d3dx.ini is what makes the reload actually land, so a failure there must leave the switch
@@ -107,7 +120,7 @@ async function checkForUpdates() {
          <div class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6">
             <VueTypography variant="TitleB" as="h2">Paths Configuration</VueTypography>
 
-            <div class="grid grid-cols-12 items-center border-b border-white/5 pb-5">
+            <div class="grid grid-cols-12 items-center">
                <VueTypography variant="BodyB" as="h3" class="col-span-2 flex items-center gap-2">
                   <PhWarning v-if="!modsFolderPath" :size="24" weight="fill" class="text-accent" />
                   Mods Folder
@@ -126,6 +139,8 @@ async function checkForUpdates() {
                   </VueButton>
                </div>
             </div>
+
+            <div class="h-px w-full bg-white/10" />
 
             <div class="grid grid-cols-12 items-center">
                <VueTypography variant="BodyB" as="h3" class="col-span-2 flex items-center gap-2">
@@ -164,6 +179,9 @@ async function checkForUpdates() {
                   @update:model-value="setAutoReload"
                />
             </div>
+             <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+               Quick Launch starts the game directly instead of opening the XXMI launcher.
+            </VueTypography>
             <VueTypography
                v-if="autoReloadError"
                variant="CaptionR"
@@ -171,6 +189,31 @@ async function checkForUpdates() {
                class="text-destructive"
             >
                {{ autoReloadError }}
+            </VueTypography>
+         </div>
+
+         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
+            <div class="flex items-center justify-between gap-6">
+               <div>
+                  <VueTypography variant="TitleB" as="h2">Skip XXMI Launcher</VueTypography>
+               </div>
+               <VueSwitch
+                  :model-value="skipXxmiLauncher"
+                  :title="skipXxmiLauncher ? 'Enabled' : 'Disabled'"
+                  @update:model-value="setSkipXxmiLauncher"
+               />
+            </div>
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+               Quick Launch starts the game directly instead of opening the XXMI launcher.
+            </VueTypography>
+            <VueTypography
+               v-if="skipXxmiLauncher && !gameExeIsXxmiLauncher"
+               variant="CaptionR"
+               as="p"
+               class="text-accent"
+            >
+               Your Game Executable isn't XXMI Launcher, so this has no effect — the flags it passes
+               are the launcher's own.
             </VueTypography>
          </div>
 
@@ -220,24 +263,21 @@ async function checkForUpdates() {
                   You're up to date.
                </VueTypography>
             </div>
+            <div v-if="changelog.length > 0" class="h-px w-full bg-white/10" />
 
-            <div
-               v-if="changelog.length > 0"
-               class="flex flex-col gap-4 border-t border-white/5 pt-4"
-            >
+            <div v-if="changelog.length > 0" class="flex w-full flex-col gap-4" v-auto-animate>
                <button
                   type="button"
-                  class="text-foreground/70 hover:text-primary flex cursor-pointer items-center gap-2 self-start transition-colors"
+                  class="hover:text-primary flex w-full cursor-pointer items-center justify-between gap-2 self-start text-white transition-colors"
                   @click="showChangelog = !showChangelog"
-                  v-auto-animate
                >
+                  <VueTypography variant="TitleB" as="span">Changelog</VueTypography>
                   <PhCaretRight
                      :size="20"
                      weight="bold"
                      class="transition-transform"
                      :class="{ 'rotate-90': showChangelog }"
                   />
-                  <VueTypography variant="BodyB" as="span">Changelog</VueTypography>
                </button>
 
                <div v-if="showChangelog" class="flex max-h-100 flex-col gap-5 overflow-y-auto pr-2">
@@ -254,7 +294,7 @@ async function checkForUpdates() {
                      <VueTypography
                         variant="CaptionR"
                         as="p"
-                        class="text-muted-foreground whitespace-pre-wrap"
+                        class="text-foreground whitespace-pre-wrap"
                      >
                         {{ entry.body }}
                      </VueTypography>
