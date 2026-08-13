@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueInput from '@/components/ui/input/VueInput.vue';
 import { VueSelect } from '@/components/ui/select';
+import { useImageDrop } from '@/composables/imageDrop';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useAgentsStore } from '../../stores/agents';
 import { useCategoriesStore } from '../../stores/categories';
@@ -67,17 +68,23 @@ onMounted(async () => {
    }
 });
 
+function applyImage(dataUrl: string) {
+   newImageDataUrl.value = dataUrl;
+   previewSrc.value = dataUrl;
+}
+
 async function pickImage() {
    const path = await open({
       multiple: false,
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
    });
    if (typeof path === 'string') {
-      const dataUrl = await invoke<string>('read_image_as_data_url', { path });
-      newImageDataUrl.value = dataUrl;
-      previewSrc.value = dataUrl;
+      applyImage(await invoke<string>('read_image_as_data_url', { path }));
    }
 }
+
+// A dropped file and a picked one both arrive as a data URL, so they share applyImage.
+const { isDraggingOver, errorMessage: dropError } = useImageDrop(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -101,15 +108,22 @@ function handleSubmit() {
          @submit.prevent="handleSubmit"
       >
          <VueTypography variant="TitleB" as="h2">Edit Mod</VueTypography>
-         <div class="flex flex-col items-center gap-4">
+         <div class="flex flex-col items-center gap-4" v-auto-animate>
             <img
                :src="previewSrc ?? '/images/placeholder.jpg'"
                alt=""
-               class="aspect-video w-full rounded-lg border border-white/10 object-cover"
+               class="aspect-video w-full rounded-lg border object-cover transition-colors"
+               :class="isDraggingOver ? 'border-primary border-2' : 'border-white/10'"
             />
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+               {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
+            </VueTypography>
             <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                Choose New Image
             </VueButton>
+            <VueTypography v-if="dropError" variant="CaptionR" as="p" class="text-destructive">
+               {{ dropError }}
+            </VueTypography>
 
             <VueInput
                id="mod-name"

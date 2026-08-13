@@ -8,6 +8,7 @@ import VueInput from '@/components/ui/input/VueInput.vue';
 import Label from '@/components/ui/input/Label.vue';
 import { VueSelect } from '@/components/ui/select';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import { useImageDrop } from '@/composables/imageDrop';
 import type { Agent, AgentDetails, AgentInput } from '../../types';
 import {
    ATTRIBUTE_ICONS,
@@ -149,15 +150,22 @@ function useDefaultImage() {
    baseImage.value = null;
 }
 
+function applyImage(dataUrl: string) {
+   baseImage.value = dataUrl;
+}
+
 async function pickImage() {
    const path = await open({
       multiple: false,
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
    });
    if (typeof path === 'string') {
-      baseImage.value = await invoke<string>('read_image_as_data_url', { path });
+      applyImage(await invoke<string>('read_image_as_data_url', { path }));
    }
 }
+
+// A dropped file and a picked one both arrive as a data URL, so they share applyImage.
+const { isDraggingOver, errorMessage: dropError } = useImageDrop(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -230,14 +238,28 @@ function handleSubmit() {
             <img
                :src="resolveAgentImageSrc(baseImage)"
                alt=""
-               class="bg-foreground size-60 rounded-lg border border-white/10 object-cover"
-               :class="{ 'p-2': !baseImage }"
+               class="bg-foreground size-60 rounded-lg border object-cover transition-colors"
+               :class="[
+                  { 'p-2': !baseImage },
+                  isDraggingOver ? 'border-primary border-2' : 'border-white/10',
+               ]"
             />
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground text-center">
+               {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
+            </VueTypography>
             <!-- The image is editable on built-in agents too: it's stored separately from the
                  seeded one, so definition re-sync can't overwrite a user pick. -->
             <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                {{ baseImage ? 'Change Image' : 'Choose Image' }}
             </VueButton>
+            <VueTypography
+               v-if="dropError"
+               variant="CaptionR"
+               as="p"
+               class="text-destructive text-center"
+            >
+               {{ dropError }}
+            </VueTypography>
             <VueButton
                v-if="canResetImage"
                type="button"
