@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { PhPencilSimple, PhX } from '@phosphor-icons/vue';
+import { PhPencilSimple, PhTrash, PhX } from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueInput from '@/components/ui/input/VueInput.vue';
 import Label from '@/components/ui/input/Label.vue';
@@ -137,14 +137,21 @@ function removeAlias(alias: string) {
 // stand in for "has an override" on its own.
 const canResetImage = computed(() => {
    const agent = props.initialAgent;
+   // A user-made agent has no bundled art to fall back to, so there is no default to restore.
    if (agent?.isBuiltin !== true) return false;
+   // Already cleared: leaving the affordance up would offer to remove what is now the default.
+   if (baseImage.value === null) return false;
    return agent.hasCustomImage || baseImage.value !== agent.baseImage;
 });
 
-/** True once reset is pending: the preview falls back to the placeholder until the save lands. */
-const willRestoreDefaultImage = computed(
-   () => props.initialAgent?.isBuiltin === true && baseImage.value === null,
-);
+/**
+ * What the image slot shows: the pending pick, or the bundled art once a custom one is cleared.
+ *
+ * `baseImage` going null means "no custom image", not "no image" — the agent still has whatever
+ * definitions/zzz.toml seeded. Falling through to `defaultImage` is what makes clearing show the real
+ * portrait straight away instead of the anonymous placeholder.
+ */
+const previewImage = computed(() => baseImage.value ?? props.initialAgent?.defaultImage ?? null);
 
 function useDefaultImage() {
    baseImage.value = null;
@@ -235,22 +242,35 @@ function handleSubmit() {
 
       <form v-else @submit.prevent="handleSubmit" class="flex gap-6">
          <div class="flex h-full w-60 flex-col items-center gap-4" v-auto-animate>
-            <img
-               :src="resolveAgentImageSrc(baseImage)"
-               alt=""
-               class="bg-foreground size-60 rounded-lg border object-cover transition-colors"
-               :class="[
-                  { 'p-2': !baseImage },
-                  isDraggingOver ? 'border-primary border-2' : 'border-white/10',
-               ]"
-            />
+            <div class="group relative size-60">
+               <img
+                  :src="resolveAgentImageSrc(previewImage)"
+                  alt=""
+                  class="bg-foreground size-60 rounded-lg border object-cover transition-colors"
+                  :class="[
+                     { 'p-2': !previewImage },
+                     isDraggingOver ? 'border-primary border-2' : 'border-white/10',
+                  ]"
+               />
+               <!-- Only offered when there is a custom image to remove: on the bundled art there is
+                    nothing to fall back to, so the button would do nothing. -->
+               <button
+                  v-if="canResetImage"
+                  type="button"
+                  class="bg-background/80 text-foreground/70 hover:text-destructive absolute top-2 right-2 cursor-pointer rounded-full p-2 opacity-0 transition-all group-hover:opacity-100"
+                  title="Use default image"
+                  @click="useDefaultImage"
+               >
+                  <PhTrash :size="20" weight="fill" />
+               </button>
+            </div>
             <VueTypography variant="CaptionR" as="p" class="text-muted-foreground text-center">
                {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
             </VueTypography>
             <!-- The image is editable on built-in agents too: it's stored separately from the
                  seeded one, so definition re-sync can't overwrite a user pick. -->
             <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
-               {{ baseImage ? 'Change Image' : 'Choose Image' }}
+               {{ previewImage ? 'Change Image' : 'Choose Image' }}
             </VueButton>
             <VueTypography
                v-if="dropError"
@@ -259,24 +279,6 @@ function handleSubmit() {
                class="text-destructive text-center"
             >
                {{ dropError }}
-            </VueTypography>
-            <VueButton
-               v-if="canResetImage"
-               type="button"
-               variant="ghost"
-               color="gray"
-               size="sm"
-               @click="useDefaultImage"
-            >
-               Use default image
-            </VueButton>
-            <VueTypography
-               v-if="willRestoreDefaultImage"
-               variant="CaptionR"
-               as="p"
-               class="text-muted-foreground text-center"
-            >
-               Saving restores the bundled image.
             </VueTypography>
          </div>
          <div class="flex flex-1 flex-col gap-4">

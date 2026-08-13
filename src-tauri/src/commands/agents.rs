@@ -23,17 +23,29 @@ fn validated_slug(name: &str) -> Result<String, String> {
 fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases> {
     // A user pick wins over the seeded image; sync only ever writes base_image, so COALESCE here is
     // what makes a custom image survive definition re-sync.
-    let (name, slug, details, base_image, has_custom_image, is_builtin): (
+    let (name, slug, details, base_image, default_image, has_custom_image, is_builtin): (
         String,
         String,
+        Option<String>,
         Option<String>,
         Option<String>,
         bool,
         i64,
     ) = conn.query_row(
-        "SELECT name, slug, details, COALESCE(custom_image, base_image), custom_image IS NOT NULL,          is_builtin FROM agents WHERE id = ?1",
+        "SELECT name, slug, details, COALESCE(custom_image, base_image), base_image, \
+         custom_image IS NOT NULL, is_builtin FROM agents WHERE id = ?1",
         params![id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?)),
+        |row| {
+            Ok((
+                row.get(0)?,
+                row.get(1)?,
+                row.get(2)?,
+                row.get(3)?,
+                row.get(4)?,
+                row.get(5)?,
+                row.get(6)?,
+            ))
+        },
     )?;
 
     let mut stmt = conn.prepare("SELECT alias FROM agent_aliases WHERE agent_id = ?1 ORDER BY alias")?;
@@ -47,6 +59,7 @@ fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases
         slug,
         details,
         base_image,
+        default_image,
         has_custom_image,
         is_builtin: is_builtin != 0,
         aliases,

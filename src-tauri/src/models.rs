@@ -9,6 +9,12 @@ pub struct AgentWithAliases {
     pub details: Option<String>,
     /// Already resolved: the custom image if one is set, otherwise the seeded one.
     pub base_image: Option<String>,
+    /// The seeded image on its own, unshadowed by a user pick.
+    ///
+    /// Sent alongside the resolved one so clearing a custom image can preview the bundled art
+    /// immediately. Without it the form has nothing to fall back to and shows the anonymous
+    /// placeholder until a save-and-refetch round trip lands.
+    pub default_image: Option<String>,
     /// Whether `base_image` came from a user pick — drives the "use default" affordance.
     pub has_custom_image: bool,
     pub is_builtin: bool,
@@ -56,6 +62,12 @@ pub struct ModInput {
     /// inside the mod's own folder (keeping image_filename a plain relative filename, same
     /// convention the scanner already uses), not stored as a data URL in the DB like agent images.
     pub image_data_url: Option<String>,
+    /// Drop the image this app saved and go back to whatever the mod itself ships with.
+    ///
+    /// Separate from `image_data_url` because `None` there already means "leave the image alone", so
+    /// there is no value it could carry to mean "remove it".
+    #[serde(default)]
+    pub clear_image: bool,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]

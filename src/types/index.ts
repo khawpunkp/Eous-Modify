@@ -4,6 +4,8 @@ export interface Agent {
    slug: string;
    details: string | null;
    baseImage: string | null;
+   /** The bundled image on its own, so clearing a custom pick can preview it without a round trip. */
+   defaultImage: string | null;
    /** True when baseImage came from a user pick rather than the bundled definitions. */
    hasCustomImage: boolean;
    isBuiltin: boolean;
@@ -47,6 +49,8 @@ export interface ModInput {
    name: string;
    author: string | null;
    imageDataUrl: string | null;
+   /** Drop the image this app saved and fall back to whatever the mod itself ships with. */
+   clearImage?: boolean;
 }
 
 export interface ModGroupMember {

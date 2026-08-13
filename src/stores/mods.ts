@@ -71,9 +71,10 @@ export const useModsStore = defineStore('mods', {
          const updated = await invoke<Mod>('update_mod_info', { modId, input });
          const index = this.mods.findIndex((m) => m.id === modId);
          if (index !== -1) this.mods[index] = updated;
-         // Only when an image was actually written — a name or author edit leaves the file alone, and
-         // re-reading every preview for those would be wasted work.
-         if (input.imageDataUrl) {
+         // Only when the file on disk actually changed — a name or author edit leaves it alone, and
+         // re-reading every preview for those would be wasted work. Clearing counts: it deletes our
+         // image and falls back to the mod's own, which the card has to re-read to show.
+         if (input.imageDataUrl || input.clearImage) {
             this.previewVersion[modId] = (this.previewVersion[modId] ?? 0) + 1;
          }
          return updated;

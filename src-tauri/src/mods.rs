@@ -169,15 +169,21 @@ pub fn update_mod(
         .query_row("SELECT folder_name FROM mods WHERE id = ?1", params![mod_id], |row| row.get(0))
         .map_err(|e| e.to_string())?;
 
-    let mut new_image_filename: Option<String> = None;
-    if let Some(data_url) = &input.image_data_url {
+    // Three outcomes, not two: write a new image, drop ours and fall back to the mod's own, or leave
+    // the image entirely alone. `image_filename` staying as-is is the last of those, so the first two
+    // both have to say what the new value is.
+    let new_image_filename: Option<Option<String>> = if input.clear_image {
+        Some(clear_saved_preview(base_mods_path, &folder_name))
+    } else if let Some(data_url) = &input.image_data_url {
         let (bytes, ext) = decode_data_url(data_url)?;
         let mod_dir = current_mod_path(base_mods_path, &folder_name)
             .ok_or_else(|| "Mod folder not found on disk; cannot save image.".to_string())?;
         let filename = format!("{}.{}", MOD_PREVIEW_BASENAME, ext);
         fs::write(mod_dir.join(&filename), bytes).map_err(|e| format!("Failed to save mod image: {}", e))?;
-        new_image_filename = Some(filename);
-    }
+        Some(Some(filename))
+    } else {
+        None
+    };
 
     match &new_image_filename {
         Some(filename) => conn.execute(
@@ -192,6 +198,30 @@ pub fn update_mod(
     .map_err(|e| e.to_string())?;
 
     get_mod(conn, base_mods_path, mod_id)
+}
+
+/// Deletes the preview this app saved and reports whatever the mod ships with instead.
+///
+/// Only ever removes a file named `mod_preview.*` — that name is written by us and nothing else. A
+/// mod's own `preview.png` or `icon.png` belongs to the mod author and is left on disk, so "use the
+/// default image" reveals it rather than destroying it.
+fn clear_saved_preview(base_mods_path: &Path, folder_name: &str) -> Option<String> {
+    let mod_dir = current_mod_path(base_mods_path, folder_name)?;
+
+    if let Ok(entries) = fs::read_dir(&mod_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let is_ours = entry
+                .path()
+                .file_stem()
+                .map(|stem| stem.eq_ignore_ascii_case(MOD_PREVIEW_BASENAME))
+                .unwrap_or(false);
+            if is_ours {
+                let _ = fs::remove_file(entry.path());
+            }
+        }
+    }
+
+    crate::scanner::deduce::find_preview_image(&mod_dir)
 }
 
 /// If `category_item_id` is already set, returns it unchanged. Otherwise, if `category_id` is set,
@@ -325,6 +355,50 @@ pub fn delete_mod(conn: &Connection, base_mods_path: &Path, mod_id: i64) -> Resu
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicU32, Ordering};
+
+    #[test]
+    fn clearing_a_preview_removes_ours_and_reveals_the_mods_own() {
+        let (base, folder) = build_test_mod_dir();
+        let dir = base.join(&folder);
+        fs::write(dir.join("mod_preview.png"), b"ours").unwrap();
+        fs::write(dir.join("preview.png"), b"the mod's").unwrap();
+
+        let fallback = clear_saved_preview(&base, &folder);
+
+        assert!(!dir.join("mod_preview.png").exists(), "our saved preview should be deleted");
+        assert!(
+            dir.join("preview.png").exists(),
+            "the mod's own artwork belongs to its author and must survive"
+        );
+        assert_eq!(fallback.as_deref(), Some("preview.png"));
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn clearing_a_preview_reports_none_when_the_mod_ships_no_image() {
+        let (base, folder) = build_test_mod_dir();
+        fs::write(base.join(&folder).join("mod_preview.jpg"), b"ours").unwrap();
+
+        assert_eq!(clear_saved_preview(&base, &folder), None);
+        assert!(!base.join(&folder).join("mod_preview.jpg").exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn clearing_a_preview_works_on_a_disabled_mod() {
+        // The folder carries the DISABLED_ prefix, so a path built from folder_name alone would miss
+        // and silently leave our file behind.
+        let (base, folder) = build_test_mod_dir();
+        fs::write(base.join(&folder).join("mod_preview.png"), b"ours").unwrap();
+        fs::rename(base.join(&folder), base.join(format!("DISABLED_{folder}"))).unwrap();
+
+        assert_eq!(clear_saved_preview(&base, &folder), None);
+        assert!(!base.join(format!("DISABLED_{folder}")).join("mod_preview.png").exists());
+
+        let _ = fs::remove_dir_all(&base);
+    }
 
     fn build_test_mod_dir() -> (PathBuf, String) {
         static COUNTER: AtomicU32 = AtomicU32::new(0);
