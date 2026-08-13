@@ -44,6 +44,9 @@ export function useImageDrop(onImage: (dataUrl: string) => void) {
 
          if (event.payload.type === 'over') {
             isDraggingOver.value = true;
+            // A new drag supersedes the last complaint. Without this the message from a rejected file
+            // sits there indefinitely, since nothing else ever takes it down.
+            errorMessage.value = null;
             return;
          }
 
@@ -77,5 +80,10 @@ export function useImageDrop(onImage: (dataUrl: string) => void) {
       if (index !== -1) targets.splice(index, 1);
    });
 
-   return { isDraggingOver, errorMessage };
+   /** For the callers that also set an image by other means — picking one should retire a drop error. */
+   function clearError() {
+      errorMessage.value = null;
+   }
+
+   return { isDraggingOver, errorMessage, clearError };
 }

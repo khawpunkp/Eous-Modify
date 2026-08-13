@@ -167,12 +167,17 @@ async function pickImage() {
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
    });
    if (typeof path === 'string') {
+      clearDropError();
       applyImage(await invoke<string>('read_image_as_data_url', { path }));
    }
 }
 
 // A dropped file and a picked one both arrive as a data URL, so they share applyImage.
-const { isDraggingOver, errorMessage: dropError } = useImageDrop(applyImage);
+const {
+   isDraggingOver,
+   errorMessage: dropError,
+   clearError: clearDropError,
+} = useImageDrop(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -264,22 +269,24 @@ function handleSubmit() {
                   <PhTrash :size="20" weight="fill" />
                </button>
             </div>
-            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground text-center">
-               {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
+            <!-- One line that changes text rather than an error element that appears below: a new
+                 node here enters mid-column and shifts everything under it as it animates in. -->
+            <VueTypography
+               variant="CaptionR"
+               as="p"
+               class="text-center"
+               :class="dropError ? 'text-destructive' : 'text-muted-foreground'"
+            >
+               {{
+                  dropError ??
+                  (isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or')
+               }}
             </VueTypography>
             <!-- The image is editable on built-in agents too: it's stored separately from the
                  seeded one, so definition re-sync can't overwrite a user pick. -->
             <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                {{ previewImage ? 'Change Image' : 'Choose Image' }}
             </VueButton>
-            <VueTypography
-               v-if="dropError"
-               variant="CaptionR"
-               as="p"
-               class="text-destructive text-center"
-            >
-               {{ dropError }}
-            </VueTypography>
          </div>
          <div class="flex flex-1 flex-col gap-4">
             <VueInput v-if="canEditDetails" id="agent-name" v-model="name" label="Name" required />

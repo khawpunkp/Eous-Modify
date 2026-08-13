@@ -41,11 +41,14 @@ const clearImage = ref(false);
  * never deleted, and is exactly what removing ours falls back to, so offering to remove it would be
  * a button that appears to do nothing.
  */
-const canClearImage = computed(
-   () =>
-      newImageDataUrl.value !== null ||
-      Boolean(props.mod.imageFilename?.startsWith('mod_preview.')),
-);
+const canClearImage = computed(() => {
+   // Already cleared: what's on screen is the default now, so offering to remove it again would be a
+   // button that does nothing. Picking or dropping a replacement brings it back.
+   if (clearImage.value) return false;
+   return (
+      newImageDataUrl.value !== null || Boolean(props.mod.imageFilename?.startsWith('mod_preview.'))
+   );
+});
 
 const currentTarget =
    props.mod.agentId !== null
@@ -112,12 +115,17 @@ async function pickImage() {
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
    });
    if (typeof path === 'string') {
+      clearDropError();
       applyImage(await invoke<string>('read_image_as_data_url', { path }));
    }
 }
 
 // A dropped file and a picked one both arrive as a data URL, so they share applyImage.
-const { isDraggingOver, errorMessage: dropError } = useImageDrop(applyImage);
+const {
+   isDraggingOver,
+   errorMessage: dropError,
+   clearError: clearDropError,
+} = useImageDrop(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -161,15 +169,22 @@ function handleSubmit() {
                      <PhTrash :size="20" weight="fill" />
                   </button>
                </div>
-               <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-                  {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
+               <!-- One line that changes text rather than an error element that appears below: a new
+                    node here enters mid-column and pushes the whole form down as it animates in. -->
+               <VueTypography
+                  variant="CaptionR"
+                  as="p"
+                  class="text-center"
+                  :class="dropError ? 'text-destructive' : 'text-muted-foreground'"
+               >
+                  {{
+                     dropError ??
+                     (isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or')
+                  }}
                </VueTypography>
                <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                   Choose New Image
                </VueButton>
-               <VueTypography v-if="dropError" variant="CaptionR" as="p" class="text-destructive">
-                  {{ dropError }}
-               </VueTypography>
             </div>
             <VueInput
                id="mod-name"
