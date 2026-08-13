@@ -169,22 +169,23 @@ function handleSubmit() {
                      <PhTrash :size="20" weight="fill" />
                   </button>
                </div>
-               <!-- One line that changes text rather than an error element that appears below: a new
-                    node here enters mid-column and pushes the whole form down as it animates in. -->
-               <VueTypography
-                  variant="CaptionR"
-                  as="p"
-                  class="text-center"
-                  :class="dropError ? 'text-destructive' : 'text-muted-foreground'"
-               >
-                  {{
-                     dropError ??
-                     (isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or')
-                  }}
+               <VueTypography variant="CaptionR" as="p" class="text-muted-foreground text-center">
+                  {{ isDraggingOver ? 'Drop to use this image' : 'Drop an image here, or' }}
                </VueTypography>
                <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                   Choose New Image
                </VueButton>
+               <!-- Last child on purpose. auto-animate translates every sibling an insertion
+                    displaces, so an error added mid-column animates the whole form; added at the end
+                    it displaces nothing and only fades in itself. -->
+               <VueTypography
+                  v-if="dropError"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-destructive text-center"
+               >
+                  {{ dropError }}
+               </VueTypography>
             </div>
             <VueInput
                id="mod-name"
