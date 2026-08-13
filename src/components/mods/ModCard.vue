@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { PhPencilSimple, PhFolderOpen, PhKeyboard, PhTrash } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
@@ -26,14 +26,33 @@ const imageSrc = ref<string | null>(null);
 
 // Resolved backend-side: a disabled mod's folder carries the DISABLED_ prefix, so a path built here
 // from `mod.folderName` (which is always the enabled name) would miss and show the placeholder.
-onMounted(async () => {
-   if (!props.mod.imageFilename) return;
+async function loadPreview() {
+   if (!props.mod.imageFilename) {
+      imageSrc.value = null;
+      return;
+   }
    try {
       imageSrc.value = await invoke<string | null>('get_mod_preview', { modId: props.mod.id });
    } catch {
       imageSrc.value = null;
    }
-});
+}
+
+// Every reason the file behind this card can change:
+//  - id: the card was reused for a different mod
+//  - imageFilename: a preview was added, removed, or saved with a different extension
+//  - isEnabled: the folder was renamed, so the image lives at a different path
+//  - previewVersion: a preview was overwritten keeping the same name, which none of the above shows
+watch(
+   () => [
+      props.mod.id,
+      props.mod.imageFilename,
+      props.mod.isEnabled,
+      modsStore.previewVersion[props.mod.id],
+   ],
+   loadPreview,
+   { immediate: true },
+);
 
 function toggle() {
    modsStore.toggle(props.mod.id);

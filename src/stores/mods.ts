@@ -8,6 +8,14 @@ export const useModsStore = defineStore('mods', {
       mods: [] as Mod[],
       groups: [] as ModGroup[],
       isLoading: false,
+      /**
+       * Bumped per mod id whenever its preview file is rewritten, so cards know to re-read it.
+       *
+       * Saving an image always writes `mod_preview.<ext>`, so replacing a PNG with another PNG leaves
+       * `imageFilename` byte-identical — nothing on the mod itself changes, and a card watching its
+       * own props would never learn the file underneath it is different.
+       */
+      previewVersion: {} as Record<number, number>,
    }),
    actions: {
       async fetchByAgent(agentId: number) {
@@ -63,6 +71,11 @@ export const useModsStore = defineStore('mods', {
          const updated = await invoke<Mod>('update_mod_info', { modId, input });
          const index = this.mods.findIndex((m) => m.id === modId);
          if (index !== -1) this.mods[index] = updated;
+         // Only when an image was actually written — a name or author edit leaves the file alone, and
+         // re-reading every preview for those would be wasted work.
+         if (input.imageDataUrl) {
+            this.previewVersion[modId] = (this.previewVersion[modId] ?? 0) + 1;
+         }
          return updated;
       },
       async remove(modId: number) {
