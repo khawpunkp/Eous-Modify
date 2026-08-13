@@ -7,6 +7,31 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
 
+## 0.0.4
+
+Added
+
+- Drop an image straight onto a mod or an agent to use it as the picture.
+- Hover a picture to remove the one you set and go back to the default.
+- Settings now lists the changelog under Updates.
+- Skip XXMI Launcher: Quick Launch starts the game directly instead of opening the launcher window.
+- Portraits for Remielle and Sigrid.
+- The keybinds popup closes when you click outside it.
+
+Fixed
+
+- Mods no longer stay stale after a scan. The agent, category and Other pages update as soon as it
+  finishes.
+- Disabled mods show their preview image again.
+- A mod card picks up a new picture straight away instead of after leaving the page.
+- The update prompt no longer says you are up to date while offering an update, and closing it keeps
+  the update on offer.
+
+Changed
+
+- The two switches in Settings now share one Preferences card.
+- Text that appears and disappears eases in and out rather than popping.
+
 ## 0.0.3
 
 Fixed
