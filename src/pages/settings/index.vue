@@ -98,10 +98,8 @@ async function chooseGameExecutable() {
 
 async function checkForUpdates() {
    noUpdateFound.value = false;
-   const update = await updaterStore.check();
-   if (update) {
-      showUpdateModal.value = true;
-   } else if (!updaterStore.errorMessage) {
+   await updaterStore.check();
+   if (!updaterStore.errorMessage) {
       noUpdateFound.value = true;
    }
 }

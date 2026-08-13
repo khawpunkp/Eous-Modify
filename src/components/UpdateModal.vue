@@ -14,7 +14,6 @@ const progressPercent = computed(() => {
 
 async function handleClose() {
    if (updaterStore.isDownloading) return;
-   await updaterStore.dismiss();
    emit('close');
 }
 
