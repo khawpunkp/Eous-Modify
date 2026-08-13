@@ -14,6 +14,9 @@ const progressPercent = computed(() => {
 
 async function handleClose() {
    if (updaterStore.isDownloading) return;
+   // Keeps the update on offer, but takes a failed download's message with it — otherwise it outlives
+   // the prompt it belonged to and sits on the Settings page.
+   updaterStore.clearError();
    emit('close');
 }
 
@@ -42,7 +45,7 @@ async function handleRestart() {
          </div>
          <VueTypography
             v-if="updaterStore.update?.body"
-            variant="CaptionR"
+            variant="CaptionL"
             as="p"
             class="text-foreground/70 max-h-50 overflow-y-auto whitespace-pre-wrap"
          >

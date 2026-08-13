@@ -18,6 +18,8 @@ export const useUpdaterStore = defineStore('updater', {
          this.isChecking = true;
          this.errorMessage = null;
          try {
+            // The only place an Update is released. Closing the prompt deliberately keeps it, so the
+            // Settings button can go on offering it, which leaves the next check to free the old one.
             if (this.update) await this.update.close();
             const found = await check();
             // `Update` is a class instance with #private fields. Pinia state is reactive, so storing
@@ -57,12 +59,14 @@ export const useUpdaterStore = defineStore('updater', {
       async restart() {
          await relaunch();
       },
-      async dismiss() {
-         if (this.update && !this.isReadyToRestart) {
-            await this.update.close();
-         }
-         this.update = null;
-         this.isReadyToRestart = false;
+      /**
+       * Drops a failed download's message while keeping the update itself on offer.
+       *
+       * Replaces the old `dismiss()`, which also closed the Update and nulled it — that made closing
+       * the prompt forget the version it had just found. The error still has to go, or a failure
+       * stays on the Settings page long after the prompt it belonged to was closed.
+       */
+      clearError() {
          this.errorMessage = null;
       },
    },

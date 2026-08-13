@@ -99,7 +99,9 @@ async function chooseGameExecutable() {
 async function checkForUpdates() {
    noUpdateFound.value = false;
    await updaterStore.check();
-   if (!updaterStore.errorMessage) {
+   // Only when the check came back empty. Without the first guard a successful find still reported
+   // "You're up to date." — next to a button offering the version it had just found.
+   if (!updaterStore.update && !updaterStore.errorMessage) {
       noUpdateFound.value = true;
    }
 }
@@ -311,7 +313,7 @@ async function checkForUpdates() {
                         </span>
                      </div>
                      <VueTypography
-                        variant="CaptionR"
+                        variant="CaptionL"
                         as="p"
                         class="text-foreground whitespace-pre-wrap"
                      >
