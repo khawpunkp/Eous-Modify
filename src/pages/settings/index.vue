@@ -179,8 +179,9 @@ async function checkForUpdates() {
                   @update:model-value="setAutoReload"
                />
             </div>
-             <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-               Quick Launch starts the game directly instead of opening the XXMI launcher.
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+               Sends F10 after a toggle so XXMI reloads without restarting the game. Adjusts your
+               XXMI d3dx.ini so the keypress registers while this window is in front.
             </VueTypography>
             <VueTypography
                v-if="autoReloadError"
