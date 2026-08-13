@@ -109,7 +109,7 @@ async function handleImport() {
       >
          <VueTypography variant="TitleB" as="h2">Import Mod</VueTypography>
 
-         <form @submit.prevent="handleImport" class="flex flex-col gap-4">
+         <form @submit.prevent="handleImport" class="flex flex-col gap-4" v-auto-animate>
             <VueTypography variant="CaptionR" as="p" class="text-muted-foreground break-all">
                {{ archivePath }}
             </VueTypography>

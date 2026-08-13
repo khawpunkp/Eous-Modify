@@ -33,7 +33,7 @@ const specialityIcon = computed(() =>
       <VueCard
          class="hover:border-primary/30 relative flex flex-col overflow-hidden p-0 no-underline transition-all duration-300 hover:-translate-y-1.25 hover:shadow-[0_10px_25px_rgba(0,0,0,0.3)]"
       >
-         <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-2">
+         <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-2" v-auto-animate>
             <span
                v-if="totalMods > 0"
                class="bg-primary/85 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"

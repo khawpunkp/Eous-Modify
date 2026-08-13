@@ -118,7 +118,7 @@ async function checkForUpdates() {
 
       <div class="flex flex-col gap-4">
          <div class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6">
-            <VueTypography variant="TitleB" as="h2">Paths Configuration</VueTypography>
+            <VueTypography variant="H1B" as="h2">Paths Configuration</VueTypography>
 
             <div class="grid grid-cols-12 items-center">
                <VueTypography variant="BodyB" as="h3" class="col-span-2 flex items-center gap-2">
@@ -169,9 +169,9 @@ async function checkForUpdates() {
          </div>
 
          <div class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6">
-            <VueTypography variant="TitleB" as="h2">Preferences</VueTypography>
+            <VueTypography variant="H1B" as="h2">Preferences</VueTypography>
 
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col gap-2" v-auto-animate>
                <div class="flex items-center justify-between gap-6">
                   <div>
                      <VueTypography variant="BodyB" as="h3">Reload mods in-game</VueTypography>
@@ -197,7 +197,7 @@ async function checkForUpdates() {
 
             <div class="h-px w-full bg-white/10" />
 
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col gap-2" v-auto-animate>
                <div class="flex items-center justify-between gap-6">
                   <div>
                      <VueTypography variant="BodyB" as="h3">Skip XXMI Launcher</VueTypography>
@@ -217,58 +217,71 @@ async function checkForUpdates() {
                   as="p"
                   class="text-accent"
                >
-                  Your Game Executable isn't XXMI Launcher, so this has no effect — the flags it
-                  passes are the launcher's own.
+                  Your Game Executable isn't XXMI Launcher, so this has no effect.
                </VueTypography>
             </div>
          </div>
 
-         <div class="bg-card flex w-full flex-col gap-2 rounded-lg border border-white/10 p-6">
-            <div class="flex items-center justify-between">
-               <div class="flex flex-col gap-2">
-                  <VueTypography variant="TitleB" as="h2">Updates</VueTypography>
-                  <VueTypography variant="BodyR" as="p" class="text-white">
-                     Currently running v{{ currentVersion }}
-                  </VueTypography>
-               </div>
-               <div class="flex items-center justify-start gap-3">
-                  <VueButton
-                     v-if="!updaterStore.update"
-                     type="button"
-                     :disabled="updaterStore.isChecking"
-                     @click="checkForUpdates"
-                  >
-                     <PhArrowsClockwise v-if="!updaterStore.isChecking" :size="24" weight="fill" />
+         <div
+            class="bg-card flex w-full flex-col gap-4 rounded-lg border border-white/10 p-6"
+            v-auto-animate
+         >
+            <VueTypography variant="H1B" as="h2">Updates</VueTypography>
+
+            <div v-auto-animate>
+               <div class="flex items-center justify-between">
+                  <div v-auto-animate>
+                     <VueTypography variant="BodyR" as="p" class="text-white">
+                        Currently running v{{ currentVersion }}
+                     </VueTypography>
                      <div
-                        v-else
-                        class="loader size-5 border-4! border-white! border-b-transparent!"
-                     />
-                     {{ updaterStore.isChecking ? 'Checking…' : 'Check for Updates' }}
-                  </VueButton>
-                  <VueButton v-else type="button" @click="showUpdateModal = true">
-                     <PhBoxArrowDown :size="24" weight="fill" />
-                     Update Available: v{{ updaterStore.update.version }}
-                  </VueButton>
+                        v-if="!showUpdateModal && (updaterStore.errorMessage || noUpdateFound)"
+                        v-auto-animate
+                     >
+                        <VueTypography
+                           v-if="updaterStore.errorMessage"
+                           variant="CaptionR"
+                           as="p"
+                           class="text-destructive"
+                        >
+                           {{ updaterStore.errorMessage }}
+                        </VueTypography>
+                        <VueTypography
+                           v-else-if="noUpdateFound"
+                           variant="CaptionR"
+                           as="p"
+                           class="text-muted-foreground"
+                        >
+                           You're up to date.
+                        </VueTypography>
+                     </div>
+                  </div>
+                  <div class="flex items-center justify-start gap-3" v-auto-animate>
+                     <VueButton
+                        v-if="!updaterStore.update"
+                        type="button"
+                        :disabled="updaterStore.isChecking"
+                        @click="checkForUpdates"
+                     >
+                        <PhArrowsClockwise
+                           v-if="!updaterStore.isChecking"
+                           :size="24"
+                           weight="fill"
+                        />
+                        <div
+                           v-else
+                           class="loader size-5 border-4! border-white! border-b-transparent!"
+                        />
+                        {{ updaterStore.isChecking ? 'Checking…' : 'Check for Updates' }}
+                     </VueButton>
+                     <VueButton v-else type="button" @click="showUpdateModal = true">
+                        <PhBoxArrowDown :size="24" weight="fill" />
+                        Update Available: v{{ updaterStore.update.version }}
+                     </VueButton>
+                  </div>
                </div>
             </div>
-            <div v-if="!showUpdateModal">
-               <VueTypography
-                  v-if="updaterStore.errorMessage"
-                  variant="CaptionR"
-                  as="p"
-                  class="text-destructive"
-               >
-                  {{ updaterStore.errorMessage }}
-               </VueTypography>
-               <VueTypography
-                  v-else-if="noUpdateFound"
-                  variant="CaptionR"
-                  as="p"
-                  class="text-muted-foreground"
-               >
-                  You're up to date.
-               </VueTypography>
-            </div>
+
             <div v-if="changelog.length > 0" class="h-px w-full bg-white/10" />
 
             <div v-if="changelog.length > 0" class="flex w-full flex-col gap-4" v-auto-animate>
@@ -277,7 +290,7 @@ async function checkForUpdates() {
                   class="hover:text-primary flex w-full cursor-pointer items-center justify-between gap-2 self-start text-white transition-colors"
                   @click="showChangelog = !showChangelog"
                >
-                  <VueTypography variant="TitleB" as="span">Changelog</VueTypography>
+                  <VueTypography variant="BodyR" as="span">Changelog</VueTypography>
                   <PhCaretRight
                      :size="20"
                      weight="bold"
@@ -288,8 +301,10 @@ async function checkForUpdates() {
 
                <div v-if="showChangelog" class="flex max-h-100 flex-col gap-5 overflow-y-auto pr-2">
                   <div v-for="entry in changelog" :key="entry.version" class="flex flex-col gap-2">
-                     <div class="flex items-center gap-2">
-                        <VueTypography variant="BodyB" as="h3">v{{ entry.version }}</VueTypography>
+                     <div class="flex items-center gap-2" v-auto-animate>
+                        <VueTypography variant="CaptionB" as="h4">
+                           v{{ entry.version }}
+                        </VueTypography>
                         <span
                            v-if="entry.version === currentVersion"
                            class="bg-primary/85 rounded-full px-2 py-1 text-xs font-bold text-white"

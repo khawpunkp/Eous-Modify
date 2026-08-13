@@ -197,7 +197,7 @@ function closeGroupModal() {
 </script>
 
 <template>
-   <div class="flex flex-col gap-6">
+   <div class="flex flex-col gap-6" v-auto-animate>
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="flex items-center gap-3">
             <button

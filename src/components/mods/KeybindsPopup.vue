@@ -30,7 +30,7 @@ onMounted(async () => {
          class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-4 overflow-y-auto rounded-lg border border-white/10 p-6"
       >
          <VueTypography variant="TitleB" as="h2">Keybinds</VueTypography>
-         <div class="flex flex-col gap-2">
+         <div class="flex flex-col gap-2" v-auto-animate>
             <template v-if="errorMessage">
                <VueTypography variant="CaptionR" as="p" class="text-destructive">
                   {{ errorMessage }}

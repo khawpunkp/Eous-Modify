@@ -66,7 +66,7 @@ function openFolder() {
          alt=""
          class="bg-foreground aspect-video w-full rounded-sm object-cover"
       />
-      <div class="flex flex-1 flex-col gap-1">
+      <div class="flex flex-1 flex-col gap-1" v-auto-animate>
          <VueTypography variant="BodyB">{{ mod.name }}</VueTypography>
          <VueTypography v-if="mod.author" variant="CaptionR" as="div" class="text-muted-foreground">
             by {{ mod.author }}

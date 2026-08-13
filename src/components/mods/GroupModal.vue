@@ -104,6 +104,7 @@ async function handleSubmit() {
       <form
          class="bg-card flex max-h-[85vh] w-11/12 max-w-120 flex-col gap-4 overflow-y-auto rounded-lg border border-white/10 p-6"
          @submit.prevent="handleSubmit"
+         v-auto-animate
       >
          <VueTypography variant="TitleB" as="h2">
             {{ isEditing ? 'Edit Group' : 'New Group' }}

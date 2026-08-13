@@ -182,7 +182,10 @@ function handleSubmit() {
             <VueTypography variant="H1B" as="h2">{{ name }}</VueTypography>
             <div v-if="statRows.length > 0" class="flex flex-wrap gap-4">
                <div v-for="stat in statRows" :key="stat.label" class="flex flex-col gap-2">
-                  <div class="bg-background/50 flex items-center gap-2 rounded-lg px-3 py-2">
+                  <div
+                     class="bg-background/50 flex items-center gap-2 rounded-lg px-3 py-2"
+                     v-auto-animate
+                  >
                      <img v-if="stat.icon" :src="stat.icon" alt="" class="size-6 object-contain" />
                      <VueTypography v-if="stat.label !== 'Rank'" variant="BodyR" as="span">
                         {{ stat.value || '—' }}
@@ -223,7 +226,7 @@ function handleSubmit() {
       </div>
 
       <form v-else @submit.prevent="handleSubmit" class="flex gap-6">
-         <div class="flex h-full w-60 flex-col items-center gap-4">
+         <div class="flex h-full w-60 flex-col items-center gap-4" v-auto-animate>
             <img
                :src="resolveAgentImageSrc(baseImage)"
                alt=""
