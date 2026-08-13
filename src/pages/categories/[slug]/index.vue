@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useRoute } from 'vue-router';
 import { PhArrowsIn, PhMagnifyingGlass } from '@phosphor-icons/vue';
 import { categoryIcon } from '../../../utils/category';
@@ -112,7 +113,20 @@ async function loadForSlug(slug: string) {
    }
 }
 
-onMounted(() => loadForSlug(route.params.slug));
+// A scan runs from the Sidebar and can add or remove mods in this category, so re-fetch when one
+// finishes rather than leaving the grid stale until the user navigates away and back.
+let unlistenScan: UnlistenFn | null = null;
+
+onMounted(async () => {
+   await loadForSlug(route.params.slug);
+   unlistenScan = await listen('scan-complete', () => {
+      if (category.value) {
+         Promise.all([modsStore.fetchByCategory(category.value.id), modGroupsStore.fetchAll()]);
+      }
+   });
+});
+
+onUnmounted(() => unlistenScan?.());
 
 watch(
    () => route.params.slug,

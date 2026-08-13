@@ -90,6 +90,41 @@ pub fn open_mod_folder(mod_id: i64, state: State<DbState>, app_handle: AppHandle
         .map_err(|e| e.to_string())
 }
 
+/// The mod's preview image as a data URL, or `None` when it has none / the file is gone.
+///
+/// Resolved here rather than in the webview because the folder name in the database is the *enabled*
+/// one: a disabled mod sits behind the `DISABLED_` prefix, so a path built from `folder_name` alone
+/// misses and the card falls back to the placeholder. `current_mod_path` already picks whichever
+/// variant exists.
+#[tauri::command]
+pub fn get_mod_preview(mod_id: i64, state: State<DbState>) -> Result<Option<String>, String> {
+    let mods_path = get_mods_folder(&state)?;
+
+    let (folder_name, image_filename): (String, Option<String>) = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        conn.query_row(
+            "SELECT folder_name, image_filename FROM mods WHERE id = ?1",
+            params![mod_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| e.to_string())?
+    };
+
+    let Some(image_filename) = image_filename else {
+        return Ok(None);
+    };
+    let Some(mod_dir) = mods::current_mod_path(&mods_path, &folder_name) else {
+        return Ok(None);
+    };
+
+    let path = mod_dir.join(&image_filename);
+    if !path.is_file() {
+        return Ok(None);
+    }
+
+    crate::commands::images::read_image_as_data_url(path.to_string_lossy().to_string()).map(Some)
+}
+
 #[tauri::command]
 pub fn get_mod_keybinds(mod_id: i64, state: State<DbState>) -> Result<Vec<KeybindInfo>, String> {
     let mods_path = get_mods_folder(&state)?;

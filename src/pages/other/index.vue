@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { PhArrowsIn, PhDotsThreeCircle, PhMagnifyingGlass } from '@phosphor-icons/vue';
 import ModCard from '../../components/mods/ModCard.vue';
 import GroupCard from '../../components/mods/GroupCard.vue';
@@ -94,7 +95,18 @@ async function loadMods() {
    }
 }
 
-onMounted(loadMods);
+// A scan runs from the Sidebar and can move mods onto or off this page, so re-run the fetch when one
+// finishes rather than leaving the list stale until the user navigates away and back.
+let unlistenScan: UnlistenFn | null = null;
+
+onMounted(async () => {
+   await loadMods();
+   unlistenScan = await listen('scan-complete', () => {
+      loadMods();
+   });
+});
+
+onUnmounted(() => unlistenScan?.());
 
 async function handleModSubmit(input: ModInput) {
    if (!editingMod.value) return;

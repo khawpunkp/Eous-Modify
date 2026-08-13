@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useRoute, useRouter } from 'vue-router';
 import { PhMagnifyingGlass, PhCaretLeft, PhArrowsIn } from '@phosphor-icons/vue';
 import AgentForm from '../../../components/agents/AgentForm.vue';
@@ -100,6 +101,10 @@ async function loadMods() {
    await Promise.all([modsStore.fetchByAgent(agent.value.id), modGroupsStore.fetchAll()]);
 }
 
+// A scan runs from the Sidebar, which has no idea this page is open — without listening for it, the
+// cards here stay stale until the user navigates away and back.
+let unlistenScan: UnlistenFn | null = null;
+
 onMounted(async () => {
    try {
       agent.value = await agentsStore.fetchOne(route.params.slug);
@@ -110,7 +115,12 @@ onMounted(async () => {
    } finally {
       isLoading.value = false;
    }
+   unlistenScan = await listen('scan-complete', () => {
+      loadMods();
+   });
 });
+
+onUnmounted(() => unlistenScan?.());
 
 watch(
    () => route.params.slug,

@@ -8,7 +8,6 @@ import { VueSelect } from '@/components/ui/select';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useAgentsStore } from '../../stores/agents';
 import { useCategoriesStore } from '../../stores/categories';
-import { useSettingsStore } from '../../stores/settings';
 import type { Mod, ModInput } from '../../types';
 
 const props = defineProps<{ mod: Mod }>();
@@ -20,7 +19,6 @@ const emit = defineEmits<{
 
 const agentsStore = useAgentsStore();
 const categoriesStore = useCategoriesStore();
-const settingsStore = useSettingsStore();
 
 const form = reactive({
    name: props.mod.name,
@@ -58,16 +56,13 @@ onMounted(async () => {
    if (agentsStore.agents.length === 0) agentsStore.fetchAll();
    if (categoriesStore.categories.length === 0) categoriesStore.fetchAll();
 
+   // Resolved backend-side, same reason as ModCard: a disabled mod's folder carries the DISABLED_
+   // prefix, which a path built from `mod.folderName` here would miss.
    if (props.mod.imageFilename) {
-      const modsFolderPath =
-         settingsStore.settings.mods_folder_path ?? (await settingsStore.fetch('mods_folder_path'));
-      if (modsFolderPath) {
-         const fullPath = `${modsFolderPath}/${props.mod.folderName}/${props.mod.imageFilename}`;
-         try {
-            previewSrc.value = await invoke<string>('read_image_as_data_url', { path: fullPath });
-         } catch {
-            previewSrc.value = null;
-         }
+      try {
+         previewSrc.value = await invoke<string | null>('get_mod_preview', { modId: props.mod.id });
+      } catch {
+         previewSrc.value = null;
       }
    }
 });

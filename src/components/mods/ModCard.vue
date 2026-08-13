@@ -6,7 +6,6 @@ import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import VueCheckbox from '@/components/ui/checkbox/VueCheckbox.vue';
-import { useSettingsStore } from '@/stores/settings';
 import { useModsStore } from '@/stores/mods';
 import type { Mod } from '@/types';
 
@@ -22,20 +21,15 @@ const emit = defineEmits<{
    'toggle-select': [mod: Mod];
 }>();
 
-const settingsStore = useSettingsStore();
 const modsStore = useModsStore();
 const imageSrc = ref<string | null>(null);
 
+// Resolved backend-side: a disabled mod's folder carries the DISABLED_ prefix, so a path built here
+// from `mod.folderName` (which is always the enabled name) would miss and show the placeholder.
 onMounted(async () => {
    if (!props.mod.imageFilename) return;
-   const modsFolderPath =
-      settingsStore.settings.mods_folder_path ?? (await settingsStore.fetch('mods_folder_path'));
-   if (!modsFolderPath) return;
-   const fullPath = `${modsFolderPath}/${props.mod.folderName}/${props.mod.imageFilename}`;
    try {
-      imageSrc.value = await invoke<string>('read_image_as_data_url', {
-         path: fullPath,
-      });
+      imageSrc.value = await invoke<string | null>('get_mod_preview', { modId: props.mod.id });
    } catch {
       imageSrc.value = null;
    }
