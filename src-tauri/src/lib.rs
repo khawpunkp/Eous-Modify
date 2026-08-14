@@ -27,6 +27,24 @@ pub fn run() {
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             let mut conn = db::init_db(&app_data_dir).expect("failed to initialize database");
+
+            // The in-game reload only reaches the game from an elevated process — see
+            // `commands::elevation` for why nothing reports the failure otherwise. So when the user
+            // has that setting on, restart into an elevated copy now, before the window is ever
+            // shown. Declining the prompt is not an error: this copy carries on as it is, and
+            // Settings offers the restart again.
+            if commands::reload::auto_reload_enabled(&conn)
+                && !commands::elevation::running_as_admin()
+            {
+                match commands::elevation::restart_elevated() {
+                    // Abrupt on purpose. Seeding hasn't run and nothing has been written, so there
+                    // is nothing to unwind — and the elevated copy is already on its way, which is
+                    // not a moment to leave two instances sharing the database.
+                    Ok(()) => std::process::exit(0),
+                    Err(e) => eprintln!("[elevation] carrying on without administrator: {e}"),
+                }
+            }
+
             db::seed::sync_definitions(&mut conn, &app.handle())
                 .expect("failed to sync built-in definitions");
             app.manage(DbState(Mutex::new(conn)));
@@ -39,6 +57,8 @@ pub fn run() {
             commands::agents::update_agent,
             commands::agents::delete_agent,
             commands::categories::list_categories,
+            commands::elevation::is_elevated,
+            commands::elevation::relaunch_as_admin,
             commands::images::read_image_as_data_url,
             commands::settings::get_setting,
             commands::settings::set_setting,

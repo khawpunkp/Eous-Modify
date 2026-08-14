@@ -13,6 +13,11 @@
 //! comes to the foreground, the keypress goes out and lands under 3DMigoto's own default rules. You
 //! alt-tab back and the mods are already reloaded, which is the first moment you could have noticed
 //! either way.
+//!
+//! None of that works unless Eous is elevated. Zenless Zone Zero runs as administrator, and Windows'
+//! UIPI drops synthetic input crossing from a lower-integrity process into a higher one — `SendInput`
+//! returns success regardless, so the whole path below runs and reports fine while the game never
+//! sees a thing. `commands::elevation` is what keeps that from happening silently.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -41,6 +46,10 @@ const GIVE_UP_AFTER_SECS: u64 = 600;
 #[cfg(windows)]
 const KEY_HOLD_MS: u64 = 50;
 
+/// How long to let the game settle after its window comes forward, before pressing anything.
+#[cfg(windows)]
+const SETTLE_AFTER_FOCUS_MS: u64 = 1000;
+
 /// The game's own process — what 3DMigoto is injected into.
 ///
 /// Checked alongside whatever executable the user configured, because the Settings path is the thing
@@ -56,20 +65,26 @@ fn press_f10() -> Result<(), String> {
         VK_F10,
     };
 
-    fn event(flags: KEYBD_EVENT_FLAGS) -> INPUT {
-        INPUT {
-            r#type: INPUT_KEYBOARD,
-            Anonymous: INPUT_0 {
-                ki: KEYBDINPUT {
-                    wVk: VK_F10,
-                    wScan: 0,
-                    dwFlags: flags,
-                    time: 0,
-                    dwExtraInfo: 0,
-                },
+    use windows::Win32::UI::WindowsAndMessaging::GetMessageExtraInfo;
+
+    // dwExtraInfo carries GetMessageExtraInfo() rather than a bare 0, matching
+    // No-Reload-Mod-Manager — the one other tool known to drive 3DMigoto this way on this game.
+    // Not what made the reload work (elevation was), but there is no reason to differ from the
+    // implementation with the track record.
+    let extra_info = unsafe { GetMessageExtraInfo() }.0 as usize;
+
+    let event = |flags: KEYBD_EVENT_FLAGS| INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VK_F10,
+                wScan: 0,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: extra_info,
             },
-        }
-    }
+        },
+    };
 
     let size = std::mem::size_of::<INPUT>() as i32;
     let sent = unsafe { SendInput(&[event(KEYBD_EVENT_FLAGS(0))], size) };
@@ -223,6 +238,23 @@ pub fn is_game_running(state: State<DbState>) -> Result<bool, String> {
     }
 }
 
+/// Settings-table key for the auto-reload switch. Mirrors the frontend's `AUTO_RELOAD_KEY`; the two
+/// have to agree, since the frontend writes it and startup reads it.
+const AUTO_RELOAD_KEY: &str = "auto_reload_on_toggle";
+
+/// Whether the user asked for reloads on toggle. Off unless explicitly enabled — including on a fresh
+/// install, where the row does not exist at all, so nothing prompts for administrator uninvited.
+pub fn auto_reload_enabled(conn: &rusqlite::Connection) -> bool {
+    conn.query_row("SELECT value FROM settings WHERE key = ?1", [AUTO_RELOAD_KEY], |row| {
+        row.get::<_, String>(0)
+    })
+    .optional()
+    .ok()
+    .flatten()
+    .as_deref()
+        == Some("true")
+}
+
 /// Reads the configured game executable, or `None` when the user hasn't set one yet.
 fn game_executable(conn: &rusqlite::Connection) -> Option<String> {
     conn.query_row(
@@ -265,6 +297,13 @@ pub fn request_reload(state: State<DbState>) -> Result<(), String> {
                 }
 
                 if game_is_focused(configured_exe.as_deref()) {
+                    // Let the game start drawing again before pressing anything. 3DMigoto samples
+                    // key state once per rendered frame, and a window that has only just come
+                    // forward is still mid-transition, so a press delivered this instant may land
+                    // between frames. Cheap insurance against a race nobody wants to debug twice,
+                    // and imperceptible next to the alt-tab it follows.
+                    std::thread::sleep(std::time::Duration::from_millis(SETTLE_AFTER_FOCUS_MS));
+
                     if let Err(e) = press_f10() {
                         eprintln!("[reload] could not send F10: {e}");
                     }

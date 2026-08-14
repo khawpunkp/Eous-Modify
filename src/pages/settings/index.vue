@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 import { getVersion } from '@tauri-apps/api/app';
 import {
    PhArrowsClockwise,
@@ -8,6 +9,7 @@ import {
    PhCaretRight,
    PhFolderOpen,
    PhGear,
+   PhShieldCheck,
    PhWarning,
 } from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
@@ -40,6 +42,7 @@ onMounted(async () => {
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
    autoReload.value = (await settingsStore.fetch(AUTO_RELOAD_KEY)) === 'true';
+   isElevated.value = await invoke<boolean>('is_elevated');
    skipXxmiLauncher.value = (await settingsStore.fetch(SKIP_XXMI_LAUNCHER_KEY)) === 'true';
    await updaterStore.check();
    if (Boolean(updaterStore.update)) showUpdateModal.value = true;
@@ -58,11 +61,30 @@ async function setSkipXxmiLauncher(enabled: boolean) {
    await settingsStore.set(SKIP_XXMI_LAUNCHER_KEY, String(enabled));
 }
 
+// The game runs as administrator, and Windows won't let a normal-privilege app send it a keypress —
+// so the reload needs Eous elevated too, or it fails silently. Startup handles that on its own once
+// the switch is on; this covers the gap in between, when it has just been turned on and the running
+// copy still isn't elevated.
+const isElevated = ref(true);
+const relaunchError = ref<string | null>(null);
+
 // Nothing outside this app to configure any more: the reload waits for the game window instead of
 // changing how 3DMigoto handles hotkeys, so the switch is just a stored preference.
 async function setAutoReload(enabled: boolean) {
    autoReload.value = enabled;
+   relaunchError.value = null;
    await settingsStore.set(AUTO_RELOAD_KEY, String(enabled));
+}
+
+// Succeeds by closing this window — the elevated copy takes over — so there is nothing to do after it
+// but report a refusal.
+async function relaunchAsAdmin() {
+   relaunchError.value = null;
+   try {
+      await invoke('relaunch_as_admin');
+   } catch (e) {
+      relaunchError.value = String(e);
+   }
 }
 
 async function chooseFolder() {
@@ -164,7 +186,8 @@ async function checkForUpdates() {
                   <div>
                      <VueTypography variant="BodyB" as="h3">Reload mods in-game</VueTypography>
                      <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-                        Reloads your mods in-game when you toggle one.
+                        Reloads your mods in-game when you toggle one. Eous starts as administrator
+                        while this is on.
                      </VueTypography>
                   </div>
                   <VueSwitch
@@ -173,6 +196,23 @@ async function checkForUpdates() {
                      @update:model-value="setAutoReload"
                   />
                </div>
+               <div v-if="autoReload && !isElevated" class="flex items-center gap-3">
+                  <VueButton type="button" variant="outlined" size="sm" @click="relaunchAsAdmin">
+                     <PhShieldCheck :size="20" weight="fill" />
+                     Restart as administrator
+                  </VueButton>
+                  <VueTypography variant="CaptionR" as="p" class="text-accent">
+                     Your mods won't reload in-game until you do.
+                  </VueTypography>
+               </div>
+               <VueTypography
+                  v-if="relaunchError"
+                  variant="CaptionR"
+                  as="p"
+                  class="text-destructive"
+               >
+                  {{ relaunchError }}
+               </VueTypography>
             </div>
 
             <div class="h-px w-full bg-white/10" />

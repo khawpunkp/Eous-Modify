@@ -22,6 +22,11 @@ Fixed
 - Reloading also never ran unless you had opened Settings that session, so for most people it did
   nothing at all.
 
+- Reloading now reaches the game at all. Zenless Zone Zero runs as administrator, and Windows does not
+  let an ordinary program send a keypress to one that does — so every reload was being thrown away in
+  transit, with nothing reported and nothing to see. Eous now starts as administrator whenever the
+  setting is on, and Settings offers to restart it if it is not.
+
 Added
 
 - Quick Launch shows "Running…" and stops offering to start the game when it is already open.

@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod categories;
+pub mod elevation;
 pub mod images;
 pub mod launcher;
 pub mod mod_groups;

@@ -26,57 +26,26 @@ fn is_xxmi_launcher(path: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Re-launches the target through `ShellExecuteW`'s `runas` verb, which raises the UAC prompt. A
-/// non-elevated process can't spawn an elevated child any other way on Windows — hence the shell
-/// round-trip rather than a plain `Command`. Ported from the pre-rebuild app's
-/// `launch_executable_elevated`.
+/// Re-launches the target through the UAC prompt. The `ShellExecuteW` call itself lives in
+/// `commands::elevation`, which also uses it to restart Eous; only the wording is decided here.
 #[cfg(windows)]
 fn launch_elevated(path: &str, args: &[&str]) -> Result<(), String> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows::core::PCWSTR;
-    use windows::Win32::Foundation::{ERROR_CANCELLED, HWND};
-    use windows::Win32::UI::Shell::ShellExecuteW;
-    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use crate::commands::elevation::{run_as_admin, RunAsError};
 
-    fn wide(value: &str) -> Vec<u16> {
-        std::ffi::OsStr::new(value).encode_wide().chain(std::iter::once(0)).collect()
+    match run_as_admin(path, args) {
+        Ok(()) => {
+            println!("[game] launched elevated via ShellExecuteW");
+            Ok(())
+        }
+        Err(RunAsError::Cancelled) => {
+            Err("Launch cancelled — administrator permission was declined.".to_string())
+        }
+        Err(RunAsError::Failed(code)) => Err(format!(
+            "The game needs administrator privileges, and the elevated launch failed \
+             (ShellExecuteW error {}).",
+            code
+        )),
     }
-
-    let path_wide = wide(path);
-    let verb_wide = wide("runas");
-
-    // Kept alive for the duration of the call; ShellExecuteW takes one parameter string, not a list.
-    let params = args.join(" ");
-    let params_wide = wide(&params);
-    let params_ptr = if params.is_empty() { PCWSTR::null() } else { PCWSTR(params_wide.as_ptr()) };
-
-    let result = unsafe {
-        ShellExecuteW(
-            Some(HWND::default()),
-            PCWSTR(verb_wide.as_ptr()),
-            PCWSTR(path_wide.as_ptr()),
-            params_ptr,
-            None,
-            SW_SHOWNORMAL,
-        )
-    };
-
-    // The returned pseudo-HINSTANCE is really a status: anything above 32 means it launched,
-    // anything else is an error code.
-    let code = result.0 as isize;
-    if code > 32 {
-        println!("[game] launched elevated via ShellExecuteW");
-        return Ok(());
-    }
-
-    if code as i32 == ERROR_CANCELLED.0 as i32 {
-        return Err("Launch cancelled — administrator permission was declined.".to_string());
-    }
-    Err(format!(
-        "The game needs administrator privileges, and the elevated launch failed \
-         (ShellExecuteW error {}).",
-        code
-    ))
 }
 
 #[cfg(not(windows))]
