@@ -11,21 +11,22 @@ emphasis show up literally; bullets and blank lines are fine.
 
 Fixed
 
-- Reloading mods in-game no longer makes your mods' own keybinds work everywhere. Turning it on used
-  to tell 3DMigoto to accept hotkeys from any window, so mods bound to plain letters and digits fired
-  while you were typing in other apps. The reload now waits for the game window instead, and your
-  d3dx.ini is left exactly as XXMI shipped it.
+- Reloading mods in-game now reaches the game at all. Zenless Zone Zero runs as administrator, and
+  Windows does not let an ordinary program send a keypress to one that does, so every reload was
+  being thrown away in transit — nothing reported, nothing to see. Eous now starts as administrator
+  whenever the setting is on, which is why Windows will ask on the next launch, and Settings offers
+  to restart it if it is not.
+
+- Turning that setting on no longer makes your mods' own keybinds work everywhere. It used to tell
+  3DMigoto to accept hotkeys from any window, so mods bound to plain letters and digits fired while
+  you were typing in other apps. The reload waits for the game window instead, and your d3dx.ini is
+  left exactly as XXMI shipped it.
 
   If you turned the setting on in 0.0.4, open your XXMI folder's d3dx.ini and set
   check_foreground_window back to 1 — the line is marked with a comment naming this app.
 
-- Reloading also never ran unless you had opened Settings that session, so for most people it did
+- The reload also never ran unless you had opened Settings that session, so for most people it did
   nothing at all.
-
-- Reloading now reaches the game at all. Zenless Zone Zero runs as administrator, and Windows does not
-  let an ordinary program send a keypress to one that does — so every reload was being thrown away in
-  transit, with nothing reported and nothing to see. Eous now starts as administrator whenever the
-  setting is on, and Settings offers to restart it if it is not.
 
 Added
 
