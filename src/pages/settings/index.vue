@@ -14,7 +14,7 @@ import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
-import { AUTO_RELOAD_KEY, setXxmiBackgroundKeys } from '../../utils/reload';
+import { AUTO_RELOAD_KEY } from '../../utils/reload';
 import { CHANGELOG } from '../../utils/changelog';
 import { SKIP_XXMI_LAUNCHER_KEY, isXxmiLauncherPath } from '../../utils/launcher';
 import { useUpdaterStore } from '../../stores/updater';
@@ -46,7 +46,6 @@ onMounted(async () => {
 });
 
 const autoReload = ref(false);
-const autoReloadError = ref<string | null>(null);
 
 const skipXxmiLauncher = ref(false);
 // The backend applies the launcher-only flags just for XXMI Launcher, so surface when the configured
@@ -59,20 +58,9 @@ async function setSkipXxmiLauncher(enabled: boolean) {
    await settingsStore.set(SKIP_XXMI_LAUNCHER_KEY, String(enabled));
 }
 
-/**
- * Editing d3dx.ini is what makes the reload actually land, so a failure there must leave the switch
- * off: an "Enabled" switch over a feature that can't work is the bug this whole thing exists to fix.
- * Turning it off is honoured either way — the user asked for off, and a d3dx.ini we couldn't revert
- * is a separate problem to report, not a reason to stay on.
- */
+// Nothing outside this app to configure any more: the reload waits for the game window instead of
+// changing how 3DMigoto handles hotkeys, so the switch is just a stored preference.
 async function setAutoReload(enabled: boolean) {
-   autoReloadError.value = null;
-   try {
-      await setXxmiBackgroundKeys(enabled);
-   } catch (e) {
-      autoReloadError.value = String(e);
-      if (enabled) return;
-   }
    autoReload.value = enabled;
    await settingsStore.set(AUTO_RELOAD_KEY, String(enabled));
 }
@@ -185,14 +173,6 @@ async function checkForUpdates() {
                      @update:model-value="setAutoReload"
                   />
                </div>
-               <VueTypography
-                  v-if="autoReloadError"
-                  variant="CaptionR"
-                  as="p"
-                  class="text-destructive"
-               >
-                  {{ autoReloadError }}
-               </VueTypography>
             </div>
 
             <div class="h-px w-full bg-white/10" />

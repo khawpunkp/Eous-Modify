@@ -9,28 +9,21 @@ export function isAutoReloadEnabled(): boolean {
 }
 
 /**
- * Turns 3DMigoto's background-hotkey handling on or off by editing `check_foreground_window` in the
- * XXMI install's `d3dx.ini`. Without it, 3DMigoto ignores our F10 whenever this app is the focused
- * window — which is exactly when a mod toggle happens.
+ * Notes that the game owes a reload after a mod or group toggle, if the user opted in.
  *
- * Throws, unlike {@link maybeReloadXxmi}: this runs when the user flips the switch, and a switch that
- * silently fails to do the one thing that makes the feature work is worse than an error message.
- */
-export async function setXxmiBackgroundKeys(enabled: boolean): Promise<void> {
-   await invoke('set_xxmi_background_keys', { enabled });
-}
-
-/**
- * Asks XXMI to reload after a mod/group toggle, if the user opted in.
+ * Returns straight away. The F10 goes out later, once the game window is back in front — 3DMigoto
+ * ignores hotkeys while another window is focused, and this app is that window at the moment of a
+ * toggle. Waiting is what lets its own default stay in place; the alternative was telling 3DMigoto to
+ * accept hotkeys from anywhere, which also handed every mod's keybinds to whatever you were typing in.
  *
  * Errors are logged rather than thrown so a failed reload can never break the toggle itself — the
- * folder rename has already succeeded by this point, and the user can always press F10 themselves.
+ * folder rename has already succeeded by this point, and F10 still works by hand.
  */
 export async function maybeReloadXxmi(): Promise<void> {
    if (!isAutoReloadEnabled()) return;
    try {
-      await invoke('reload_xxmi');
+      await invoke('request_reload');
    } catch (e) {
-      console.warn('[reload] could not send F10 to XXMI:', e);
+      console.warn('[reload] could not queue a reload:', e);
    }
 }
