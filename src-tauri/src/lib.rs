@@ -5,6 +5,7 @@ mod mod_groups;
 mod models;
 mod mods;
 mod scanner;
+mod xxmi_cleanup;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -27,6 +28,18 @@ pub fn run() {
         .setup(|app| {
             let app_data_dir = app.path().app_data_dir()?;
             let mut conn = db::init_db(&app_data_dir).expect("failed to initialize database");
+
+            // 0.0.4 wrote check_foreground_window = 0 into the user's d3dx.ini, and 0.0.5 no longer
+            // needs it, so put it back rather than leave anyone to find that line themselves. Silent
+            // and idempotent — reverting removes the marker it keys off, so this is a no-op on every
+            // launch after the first. See `xxmi_cleanup`.
+            if let Ok(mods_folder) = conn.query_row::<String, _, _>(
+                "SELECT value FROM settings WHERE key = 'mods_folder_path'",
+                [],
+                |row| row.get(0),
+            ) {
+                xxmi_cleanup::revert_if_ours(std::path::Path::new(&mods_folder));
+            }
 
             // The in-game reload only reaches the game from an elevated process — see
             // `commands::elevation` for why nothing reports the failure otherwise. So when the user

@@ -22,8 +22,8 @@ Fixed
   you were typing in other apps. The reload waits for the game window instead, and your d3dx.ini is
   left exactly as XXMI shipped it.
 
-  If you turned the setting on in 0.0.4, open your XXMI folder's d3dx.ini and set
-  check_foreground_window back to 1 — the line is marked with a comment naming this app.
+  If you turned the setting on in 0.0.4, this update puts that line in your d3dx.ini back the way it
+  was. Nothing to do, and nothing you changed yourself is touched.
 
 - The reload also never ran unless you had opened Settings that session, so for most people it did
   nothing at all.
