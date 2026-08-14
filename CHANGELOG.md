@@ -7,6 +7,25 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
 
+## 0.0.5
+
+Fixed
+
+- Reloading mods in-game no longer makes your mods' own keybinds work everywhere. Turning it on used
+  to tell 3DMigoto to accept hotkeys from any window, so mods bound to plain letters and digits fired
+  while you were typing in other apps. The reload now waits for the game window instead, and your
+  d3dx.ini is left exactly as XXMI shipped it.
+
+  If you turned the setting on in 0.0.4, open your XXMI folder's d3dx.ini and set
+  check_foreground_window back to 1 — the line is marked with a comment naming this app.
+
+- Reloading also never ran unless you had opened Settings that session, so for most people it did
+  nothing at all.
+
+Added
+
+- Quick Launch shows "Running…" and stops offering to start the game when it is already open.
+
 ## 0.0.4
 
 Added

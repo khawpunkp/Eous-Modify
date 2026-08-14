@@ -58,6 +58,7 @@ pub fn run() {
             commands::mods::get_mod_default_preview,
             commands::launcher::launch_game,
             commands::reload::request_reload,
+            commands::reload::is_game_running,
             commands::mod_groups::list_mod_groups,
             commands::mod_groups::create_mod_group,
             commands::mod_groups::add_mod_to_group,

@@ -83,13 +83,13 @@ fn press_f10() -> Result<(), String> {
 }
 
 /// The executable name of whichever window is currently in front, lowercased.
+///
+/// Resolved through a ToolHelp snapshot rather than by opening the process. `QueryFullProcessImageNameW`
+/// is the obvious way to do this and it does not work here: Zenless Zone Zero is a protected process, so
+/// opening a handle to it yields nothing even for `PROCESS_QUERY_LIMITED_INFORMATION` — the same reason
+/// Windows itself shows a blank path for it. A snapshot reports names without ever opening anything.
 #[cfg(windows)]
 fn foreground_process_name() -> Option<String> {
-    use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::Threading::{
-        OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32,
-        PROCESS_QUERY_LIMITED_INFORMATION,
-    };
     use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
     let window = unsafe { GetForegroundWindow() };
@@ -103,25 +103,41 @@ fn foreground_process_name() -> Option<String> {
         return None;
     }
 
-    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+    process_name_for_pid(pid)
+}
 
-    let mut buffer = [0u16; 260];
-    let mut length = buffer.len() as u32;
-    let queried = unsafe {
-        QueryFullProcessImageNameW(
-            handle,
-            PROCESS_NAME_WIN32,
-            windows::core::PWSTR(buffer.as_mut_ptr()),
-            &mut length,
-        )
+/// Looks a pid up in a process snapshot, returning its executable name lowercased.
+#[cfg(windows)]
+fn process_name_for_pid(pid: u32) -> Option<String> {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+        TH32CS_SNAPPROCESS,
     };
-    unsafe { CloseHandle(handle) }.ok();
-    queried.ok()?;
 
-    let path = String::from_utf16_lossy(&buffer[..length as usize]);
-    std::path::Path::new(&path)
-        .file_name()
-        .map(|name| name.to_string_lossy().to_lowercase())
+    let snapshot = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }.ok()?;
+    let mut entry = PROCESSENTRY32W {
+        dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+        ..Default::default()
+    };
+
+    let mut found = None;
+    if unsafe { Process32FirstW(snapshot, &mut entry) }.is_ok() {
+        loop {
+            if entry.th32ProcessID == pid {
+                let len =
+                    entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+                found = Some(String::from_utf16_lossy(&entry.szExeFile[..len]).to_lowercase());
+                break;
+            }
+            if unsafe { Process32NextW(snapshot, &mut entry) }.is_err() {
+                break;
+            }
+        }
+    }
+
+    unsafe { CloseHandle(snapshot) }.ok();
+    found
 }
 
 /// Whether the window in front belongs to the game.
@@ -139,6 +155,72 @@ fn game_is_focused(configured_exe: Option<&str>) -> bool {
         .and_then(|path| std::path::Path::new(path).file_name())
         .map(|name| name.to_string_lossy().to_lowercase() == current)
         .unwrap_or(false)
+}
+
+/// Whether the game is running at all — not merely focused.
+///
+/// Lives here rather than in `launcher` because the knowledge of what the game's process is called
+/// already does. Enumerating is necessary: the foreground check above cannot answer this, since the
+/// case that matters is precisely the game running behind another window.
+#[tauri::command]
+pub fn is_game_running(state: State<DbState>) -> Result<bool, String> {
+    let configured_exe = {
+        let conn = state.0.lock().map_err(|e| e.to_string())?;
+        game_executable(&conn)
+    };
+
+    #[cfg(windows)]
+    {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Diagnostics::ToolHelp::{
+            CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W,
+            TH32CS_SNAPPROCESS,
+        };
+
+        let mut wanted: Vec<String> = GAME_PROCESS_NAMES.iter().map(|n| n.to_string()).collect();
+        if let Some(name) = configured_exe
+            .as_deref()
+            .and_then(|p| std::path::Path::new(p).file_name())
+            .map(|n| n.to_string_lossy().to_lowercase())
+        {
+            // The launcher counts too: it is running only while it is on screen, which is still a
+            // moment when starting the game again would be wrong.
+            wanted.push(name);
+        }
+
+        let Ok(snapshot) = (unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) }) else {
+            return Ok(false);
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+
+        let mut found = false;
+        if unsafe { Process32FirstW(snapshot, &mut entry) }.is_ok() {
+            loop {
+                let len =
+                    entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(entry.szExeFile.len());
+                let name = String::from_utf16_lossy(&entry.szExeFile[..len]).to_lowercase();
+                if wanted.iter().any(|w| *w == name) {
+                    found = true;
+                    break;
+                }
+                if unsafe { Process32NextW(snapshot, &mut entry) }.is_err() {
+                    break;
+                }
+            }
+        }
+
+        unsafe { CloseHandle(snapshot) }.ok();
+        Ok(found)
+    }
+
+    #[cfg(not(windows))]
+    {
+        let _ = configured_exe;
+        Ok(false)
+    }
 }
 
 /// Reads the configured game executable, or `None` when the user hasn't set one yet.

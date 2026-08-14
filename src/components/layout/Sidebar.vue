@@ -59,6 +59,20 @@ const scanMessage = ref<string | null>(null);
 const scanError = ref<string | null>(null);
 const showScanResult = ref(false);
 
+// Polled rather than event-driven: a process starting or stopping is not something the OS reports to
+// us, and the sidebar is mounted for the app's whole life, so a cheap check every few seconds is both
+// simpler and sufficient for a button label.
+const isGameRunning = ref(false);
+let runningPoll: ReturnType<typeof setInterval> | null = null;
+
+async function refreshGameRunning() {
+   try {
+      isGameRunning.value = await invoke<boolean>('is_game_running');
+   } catch {
+      isGameRunning.value = false;
+   }
+}
+
 let unlistenProgress: UnlistenFn | null = null;
 let unlistenComplete: UnlistenFn | null = null;
 let unlistenError: UnlistenFn | null = null;
@@ -69,6 +83,9 @@ onMounted(async () => {
       settingsStore.fetch('game_executable_path'),
       settingsStore.fetch('mods_folder_path'),
    ]);
+
+   await refreshGameRunning();
+   runningPoll = setInterval(refreshGameRunning, 3000);
 
    unlistenProgress = await listen<{ message: string }>('scan-progress', (event) => {
       scanMessage.value = event.payload.message;
@@ -86,6 +103,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+   if (runningPoll) clearInterval(runningPoll);
    unlistenProgress?.();
    unlistenComplete?.();
    unlistenError?.();
@@ -175,11 +193,11 @@ async function runScan() {
             <div class="flex flex-col gap-2">
                <VueButton
                   class="w-full justify-center"
-                  :disabled="isLaunching || !gameExecutablePath"
+                  :disabled="isLaunching || isGameRunning || !gameExecutablePath"
                   @click="launchGame"
                >
                   <PhPlay :size="24" weight="fill" />
-                  {{ isLaunching ? 'Launching…' : 'Quick Launch' }}
+                  {{ isGameRunning ? 'Running…' : isLaunching ? 'Launching…' : 'Quick Launch' }}
                </VueButton>
                <VueTypography v-if="launchError" variant="CaptionR" as="p" class="text-destructive">
                   {{ launchError }}
