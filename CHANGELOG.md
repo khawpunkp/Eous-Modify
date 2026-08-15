@@ -11,11 +11,12 @@ emphasis show up literally; bullets and blank lines are fine.
 
 Added
 
-- Reloading mods in-game works now, and you pick how it gets there. "When you switch back to the
-  game" leaves your mods' keybinds alone, and runs Eous as administrator so the keypress can reach
-  the game at all. "Straight away" reloads the moment you toggle and needs no administrator, at the
-  price of your mods' keybinds also firing while you type in other apps. The switch stays off until
-  you turn it on, and the choice sits under it.
+- Reloading mods in-game now lets you pick how it gets there, because both ways cost something.
+  "When you switch back to the game" leaves your mods' keybinds alone, and runs Eous as
+  administrator, which is what lets the keypress reach the game once its own window is in front.
+  "Straight away" reloads the moment you toggle and needs no administrator, at the price of your
+  mods' keybinds also firing while you type in other apps — which is what 0.0.4 did, without saying
+  so. The switch stays off until you turn it on, and the choice sits under it.
 
   If you had the setting on in 0.0.4, it starts off here — what it meant back then no longer exists,
   and one of the two options now asks for administrator. Turn it on again once you have seen both.
@@ -24,12 +25,8 @@ Added
 
 Fixed
 
-- Reloading never reached the game before. Zenless Zone Zero runs as administrator, and Windows does
-  not let an ordinary program send a keypress to one that does, so every reload was thrown away in
-  transit — nothing reported, nothing to see.
-
-- It also never ran at all unless you had opened Settings that session, so for most people it did
-  nothing whatsoever.
+- Reloading never ran at all unless you had opened Settings that session, so for most people the
+  setting did nothing whatsoever.
 
 - Turning it on in 0.0.4 handed every one of your mods' keybinds to whatever you were typing in, with
   no way to say no — mods bound to plain letters and digits fired in other apps. That is now the
