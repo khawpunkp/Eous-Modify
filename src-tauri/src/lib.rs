@@ -29,6 +29,11 @@ pub fn run() {
             let app_data_dir = app.path().app_data_dir()?;
             let mut conn = db::init_db(&app_data_dir).expect("failed to initialize database");
 
+            // Before anything reads the reload settings: an install arriving from 0.0.4 has a switch
+            // that was turned on under terms that no longer exist, so it starts off rather than
+            // silently becoming a UAC prompt on first launch.
+            commands::reload::adopt_default_method(&conn);
+
             // Keep d3dx.ini honest about what the user actually chose. This matters most upgrading
             // from 0.0.4, which wrote check_foreground_window = 0 unconditionally: unless they have
             // since asked for immediate mode, that line is a leftover, and leaving it means their

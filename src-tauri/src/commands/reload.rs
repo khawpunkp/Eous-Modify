@@ -282,6 +282,45 @@ pub fn reload_method(conn: &rusqlite::Connection) -> ReloadMethod {
     }
 }
 
+/// Switches the feature off once, for anyone arriving from a version that had no choice to make.
+///
+/// A missing `reload_method` row means this install predates the two options — nobody who has seen
+/// the new Settings can be missing it, since picking either writes it. If such an install had the
+/// switch on, it was turned on under 0.0.4's terms: instant reloads, no administrator, and the
+/// keybind leak nobody was told about. Every one of those terms has changed, and the nearest
+/// replacement, deferred delivery, would raise a UAC prompt on first launch that the user never
+/// agreed to — the exact thing that makes people distrust an update.
+///
+/// So it starts off. One click to turn back on, with both options and their costs visible, which is
+/// a better trade than a permission prompt arriving unannounced.
+pub fn adopt_default_method(conn: &rusqlite::Connection) {
+    let already_chosen: Option<i64> = conn
+        .query_row("SELECT 1 FROM settings WHERE key = ?1", [RELOAD_METHOD_KEY], |row| row.get(0))
+        .optional()
+        .ok()
+        .flatten();
+
+    if already_chosen.is_some() {
+        return;
+    }
+
+    let store = |key: &str, value: &str| {
+        let _ = conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?1, ?2)
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            rusqlite::params![key, value],
+        );
+    };
+
+    // Stamped even on a fresh install, where it changes nothing — it is what stops this running a
+    // second time and overriding a choice the user has since made.
+    store(RELOAD_METHOD_KEY, "deferred");
+
+    if auto_reload_enabled(conn) {
+        store(AUTO_RELOAD_KEY, "false");
+    }
+}
+
 /// Whether the user's choice means `d3dx.ini` should currently carry our line.
 ///
 /// Only ever true for immediate mode with the switch on. Everything else — switched off, deferred,

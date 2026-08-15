@@ -17,6 +17,9 @@ Added
   price of your mods' keybinds also firing while you type in other apps. The switch stays off until
   you turn it on, and the choice sits under it.
 
+  If you had the setting on in 0.0.4, it starts off here — what it meant back then no longer exists,
+  and one of the two options now asks for administrator. Turn it on again once you have seen both.
+
 - Quick Launch shows "Running…" and stops offering to start the game when it is already open.
 
 Fixed
