@@ -5,7 +5,7 @@ mod mod_groups;
 mod models;
 mod mods;
 mod scanner;
-mod xxmi_cleanup;
+mod xxmi_config;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -29,24 +29,28 @@ pub fn run() {
             let app_data_dir = app.path().app_data_dir()?;
             let mut conn = db::init_db(&app_data_dir).expect("failed to initialize database");
 
-            // 0.0.4 wrote check_foreground_window = 0 into the user's d3dx.ini, and 0.0.5 no longer
-            // needs it, so put it back rather than leave anyone to find that line themselves. Silent
-            // and idempotent — reverting removes the marker it keys off, so this is a no-op on every
-            // launch after the first. See `xxmi_cleanup`.
+            // Keep d3dx.ini honest about what the user actually chose. This matters most upgrading
+            // from 0.0.4, which wrote check_foreground_window = 0 unconditionally: unless they have
+            // since asked for immediate mode, that line is a leftover, and leaving it means their
+            // mod keybinds keep firing everywhere. Cheap to reassert every launch, and it repairs
+            // the case where a crash left the file disagreeing with the setting.
             if let Ok(mods_folder) = conn.query_row::<String, _, _>(
                 "SELECT value FROM settings WHERE key = 'mods_folder_path'",
                 [],
                 |row| row.get(0),
             ) {
-                xxmi_cleanup::revert_if_ours(std::path::Path::new(&mods_folder));
+                let wanted = commands::reload::wants_background_hotkeys(&conn);
+                let _ = xxmi_config::apply(std::path::Path::new(&mods_folder), wanted);
             }
 
-            // The in-game reload only reaches the game from an elevated process — see
+            // Deferred reload only reaches the game from an elevated process — see
             // `commands::elevation` for why nothing reports the failure otherwise. So when the user
             // has that setting on, restart into an elevated copy now, before the window is ever
             // shown. Declining the prompt is not an error: this copy carries on as it is, and
-            // Settings offers the restart again.
+            // Settings offers the restart again. Immediate mode is deliberately excluded: needing
+            // no elevation is the whole reason someone picks it.
             if commands::reload::auto_reload_enabled(&conn)
+                && commands::reload::reload_method(&conn) == commands::reload::ReloadMethod::Deferred
                 && !commands::elevation::running_as_admin()
             {
                 match commands::elevation::restart_elevated() {
@@ -91,6 +95,7 @@ pub fn run() {
             commands::mods::get_mod_default_preview,
             commands::launcher::launch_game,
             commands::reload::request_reload,
+            commands::reload::set_reload_config,
             commands::reload::is_game_running,
             commands::mod_groups::list_mod_groups,
             commands::mod_groups::create_mod_group,

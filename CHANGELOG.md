@@ -9,28 +9,30 @@ emphasis show up literally; bullets and blank lines are fine.
 
 ## 0.0.5
 
-Fixed
-
-- Reloading mods in-game now reaches the game at all. Zenless Zone Zero runs as administrator, and
-  Windows does not let an ordinary program send a keypress to one that does, so every reload was
-  being thrown away in transit — nothing reported, nothing to see. Eous now starts as administrator
-  whenever the setting is on, which is why Windows will ask on the next launch, and Settings offers
-  to restart it if it is not.
-
-- Turning that setting on no longer makes your mods' own keybinds work everywhere. It used to tell
-  3DMigoto to accept hotkeys from any window, so mods bound to plain letters and digits fired while
-  you were typing in other apps. The reload waits for the game window instead, and your d3dx.ini is
-  left exactly as XXMI shipped it.
-
-  If you turned the setting on in 0.0.4, this update puts that line in your d3dx.ini back the way it
-  was. Nothing to do, and nothing you changed yourself is touched.
-
-- The reload also never ran unless you had opened Settings that session, so for most people it did
-  nothing at all.
-
 Added
 
+- Reloading mods in-game works now, and you pick how it gets there. "When you switch back to the
+  game" leaves your mods' keybinds alone, and runs Eous as administrator so the keypress can reach
+  the game at all. "Straight away" reloads the moment you toggle and needs no administrator, at the
+  price of your mods' keybinds also firing while you type in other apps. The switch stays off until
+  you turn it on, and the choice sits under it.
+
 - Quick Launch shows "Running…" and stops offering to start the game when it is already open.
+
+Fixed
+
+- Reloading never reached the game before. Zenless Zone Zero runs as administrator, and Windows does
+  not let an ordinary program send a keypress to one that does, so every reload was thrown away in
+  transit — nothing reported, nothing to see.
+
+- It also never ran at all unless you had opened Settings that session, so for most people it did
+  nothing whatsoever.
+
+- Turning it on in 0.0.4 handed every one of your mods' keybinds to whatever you were typing in, with
+  no way to say no — mods bound to plain letters and digits fired in other apps. That is now the
+  labelled cost of one option rather than a surprise attached to both. This update also puts the line
+  0.0.4 wrote in your d3dx.ini back the way it was: nothing to do, and nothing you changed yourself
+  is touched.
 
 ## 0.0.4
 

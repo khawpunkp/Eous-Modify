@@ -16,7 +16,7 @@ import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useSettingsStore } from '../../stores/settings';
-import { AUTO_RELOAD_KEY } from '../../utils/reload';
+import { AUTO_RELOAD_KEY, RELOAD_METHOD_KEY, type ReloadMethod } from '../../utils/reload';
 import { CHANGELOG } from '../../utils/changelog';
 import { SKIP_XXMI_LAUNCHER_KEY, isXxmiLauncherPath } from '../../utils/launcher';
 import { useUpdaterStore } from '../../stores/updater';
@@ -42,6 +42,8 @@ onMounted(async () => {
    gameExecutablePath.value = await settingsStore.fetch('game_executable_path');
    currentVersion.value = await getVersion();
    autoReload.value = (await settingsStore.fetch(AUTO_RELOAD_KEY)) === 'true';
+   reloadMethod.value =
+      (await settingsStore.fetch(RELOAD_METHOD_KEY)) === 'immediate' ? 'immediate' : 'deferred';
    isElevated.value = await invoke<boolean>('is_elevated');
    skipXxmiLauncher.value = (await settingsStore.fetch(SKIP_XXMI_LAUNCHER_KEY)) === 'true';
    await updaterStore.check();
@@ -61,19 +63,55 @@ async function setSkipXxmiLauncher(enabled: boolean) {
    await settingsStore.set(SKIP_XXMI_LAUNCHER_KEY, String(enabled));
 }
 
-// The game runs as administrator, and Windows won't let a normal-privilege app send it a keypress —
-// so the reload needs Eous elevated too, or it fails silently. Startup handles that on its own once
-// the switch is on; this covers the gap in between, when it has just been turned on and the running
-// copy still isn't elevated.
+const reloadMethod = ref<ReloadMethod>('deferred');
+
+// Both halves of the trade, said plainly at the moment of choosing. The cost of each is the part
+// that matters: one asks for administrator, the other lets every mod keybind loose, and neither is
+// something the user can discover on their own after the fact.
+const RELOAD_METHODS: { value: ReloadMethod; label: string; detail: string }[] = [
+   {
+      value: 'deferred',
+      label: 'When you switch back to the game',
+      detail: "Runs as administrator. Your mods' keybinds stay in the game.",
+   },
+   {
+      value: 'immediate',
+      label: 'Straight away',
+      detail: "No administrator. Your mods' keybinds will also fire while you type in other apps.",
+   },
+];
+
+// Deferred delivery needs Eous elevated: Windows won't let an ordinary process send a keypress into
+// the elevated game, and reports success anyway, so the failure is invisible. Startup handles it
+// once the setting is on — this covers the gap in between, when it has just been switched on and
+// the running copy still isn't elevated.
 const isElevated = ref(true);
 const relaunchError = ref<string | null>(null);
+const reloadError = ref<string | null>(null);
 
-// Nothing outside this app to configure any more: the reload waits for the game window instead of
-// changing how 3DMigoto handles hotkeys, so the switch is just a stored preference.
-async function setAutoReload(enabled: boolean) {
-   autoReload.value = enabled;
+const needsAdmin = computed(
+   () => autoReload.value && reloadMethod.value === 'deferred' && !isElevated.value,
+);
+
+// One call for both controls. Immediate mode edits the user's d3dx.ini and deferred mode puts it
+// back, so the switch and the method decide the file together — writing them separately would leave
+// a moment where whichever landed second won.
+async function applyReloadConfig(enabled: boolean, method: ReloadMethod) {
+   reloadError.value = null;
    relaunchError.value = null;
-   await settingsStore.set(AUTO_RELOAD_KEY, String(enabled));
+   try {
+      await invoke('set_reload_config', { enabled, method });
+   } catch (e) {
+      reloadError.value = String(e);
+      return;
+   }
+
+   autoReload.value = enabled;
+   reloadMethod.value = method;
+   // Cached by hand because this bypasses settingsStore.set — the command above writes both keys
+   // itself, and the toggle path reads the switch straight out of this store.
+   settingsStore.settings[AUTO_RELOAD_KEY] = String(enabled);
+   settingsStore.settings[RELOAD_METHOD_KEY] = method;
 }
 
 // Succeeds by closing this window — the elevated copy takes over — so there is nothing to do after it
@@ -186,17 +224,37 @@ async function checkForUpdates() {
                   <div>
                      <VueTypography variant="BodyB" as="h3">Reload mods in-game</VueTypography>
                      <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
-                        Reloads your mods in-game when you toggle one. Eous starts as administrator
-                        while this is on.
+                        Reloads your mods in-game when you toggle one.
                      </VueTypography>
                   </div>
                   <VueSwitch
                      :model-value="autoReload"
                      :title="autoReload ? 'Enabled' : 'Disabled'"
-                     @update:model-value="setAutoReload"
+                     @update:model-value="applyReloadConfig($event, reloadMethod)"
                   />
                </div>
-               <div v-if="autoReload && !isElevated" class="flex items-center gap-3">
+
+               <div v-if="autoReload" class="flex flex-col gap-2 pt-1">
+                  <button
+                     v-for="option in RELOAD_METHODS"
+                     :key="option.value"
+                     type="button"
+                     class="flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-left transition-colors"
+                     :class="
+                        reloadMethod === option.value
+                           ? 'border-primary bg-primary/10'
+                           : 'border-white/10 bg-white/5 hover:border-white/25'
+                     "
+                     @click="applyReloadConfig(autoReload, option.value)"
+                  >
+                     <VueTypography variant="CaptionB" as="span">{{ option.label }}</VueTypography>
+                     <VueTypography variant="CaptionR" as="span" class="text-muted-foreground">
+                        {{ option.detail }}
+                     </VueTypography>
+                  </button>
+               </div>
+
+               <div v-if="needsAdmin" class="flex items-center gap-3">
                   <VueButton type="button" variant="outlined" size="sm" @click="relaunchAsAdmin">
                      <PhShieldCheck :size="20" weight="fill" />
                      Restart as administrator
@@ -205,13 +263,14 @@ async function checkForUpdates() {
                      Your mods won't reload in-game until you do.
                   </VueTypography>
                </div>
+
                <VueTypography
-                  v-if="relaunchError"
+                  v-if="reloadError || relaunchError"
                   variant="CaptionR"
                   as="p"
                   class="text-destructive"
                >
-                  {{ relaunchError }}
+                  {{ reloadError ?? relaunchError }}
                </VueTypography>
             </div>
 
