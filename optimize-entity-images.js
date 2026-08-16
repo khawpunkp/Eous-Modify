@@ -4,7 +4,7 @@ import path from 'path';
 import sharp from 'sharp';
 
 // --- Configuration ---
-const imagesDir = path.resolve('public/images/entities'); // Adjust if your path is different
+const imagesDir = path.resolve('public/images/agents'); // Adjust if your path is different
 const maxHeight = 400;
 const jpgQuality = 85; // Quality setting for JPG (0-100, higher is better quality/larger size)
 const whiteBackground = { r: 255, g: 255, b: 255 }; // Define white background color
