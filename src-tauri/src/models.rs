@@ -5,6 +5,9 @@ use serde::{Deserialize, Serialize};
 pub struct AgentWithAliases {
     pub id: i64,
     pub name: String,
+    /// The name in full, already resolved: falls back to `name` when nothing separate is stored, so
+    /// the frontend never has to decide which of the two to show.
+    pub full_name: String,
     pub slug: String,
     pub details: Option<String>,
     /// Already resolved: the custom image if one is set, otherwise the seeded one.

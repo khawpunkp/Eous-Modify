@@ -23,7 +23,10 @@ fn validated_slug(name: &str) -> Result<String, String> {
 fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases> {
     // A user pick wins over the seeded image; sync only ever writes base_image, so COALESCE here is
     // what makes a custom image survive definition re-sync.
-    let (name, slug, details, base_image, default_image, has_custom_image, is_builtin): (
+    // full_name COALESCEs to name for the same reason base_image COALESCEs above: the caller wants a
+    // value it can render, not a pair of columns and a rule for choosing between them.
+    let (name, full_name, slug, details, base_image, default_image, has_custom_image, is_builtin): (
+        String,
         String,
         String,
         Option<String>,
@@ -32,7 +35,8 @@ fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases
         bool,
         i64,
     ) = conn.query_row(
-        "SELECT name, slug, details, COALESCE(custom_image, base_image), base_image, \
+        "SELECT name, COALESCE(full_name, name), slug, details, \
+         COALESCE(custom_image, base_image), base_image, \
          custom_image IS NOT NULL, is_builtin FROM agents WHERE id = ?1",
         params![id],
         |row| {
@@ -44,6 +48,7 @@ fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases
                 row.get(4)?,
                 row.get(5)?,
                 row.get(6)?,
+                row.get(7)?,
             ))
         },
     )?;
@@ -56,6 +61,7 @@ fn row_to_agent(conn: &Connection, id: i64) -> rusqlite::Result<AgentWithAliases
     Ok(AgentWithAliases {
         id,
         name,
+        full_name,
         slug,
         details,
         base_image,
@@ -96,9 +102,11 @@ pub fn create_agent(input: AgentInput, state: State<DbState>) -> Result<AgentWit
     let slug = validated_slug(&input.name)?;
 
     let tx = conn.transaction().map_err(|e| e.to_string())?;
+    // full_name mirrors name rather than being asked for. A custom agent is something the user named
+    // themselves, so a second name field would be an empty box next to one they just filled in.
     tx.execute(
-        "INSERT INTO agents (name, slug, details, base_image, is_builtin)
-         VALUES (?1, ?2, ?3, ?4, 0)",
+        "INSERT INTO agents (name, full_name, slug, details, base_image, is_builtin)
+         VALUES (?1, ?1, ?2, ?3, ?4, 0)",
         params![input.name, slug, input.details, input.base_image],
     )
     .map_err(|e| e.to_string())?;
@@ -148,8 +156,11 @@ pub fn update_agent(
         // zzz.toml and is never blank, and its alias-only save shouldn't be blocked by whatever
         // the (disabled) name field happened to submit.
         validated_slug(&input.name)?;
+        // full_name tracks name here for the same reason create_agent copies it: a custom agent has
+        // only the one name, and leaving the old value behind on a rename would strand the detail
+        // page showing a name the user has already changed.
         tx.execute(
-            "UPDATE agents SET name = ?1, details = ?2 WHERE id = ?3",
+            "UPDATE agents SET name = ?1, full_name = ?1, details = ?2 WHERE id = ?3",
             params![input.name, input.details, id],
         )
         .map_err(|e| e.to_string())?;

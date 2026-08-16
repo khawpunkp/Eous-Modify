@@ -60,6 +60,8 @@ pub struct DeductionMaps {
     category_items: Vec<(String, String, i64, i64)>,
     /// (lowercase name, lowercase slug, category_id)
     categories: Vec<(String, String, i64)>,
+    /// (lowercase alias, category_id)
+    category_aliases: Vec<(String, i64)>,
 }
 
 pub fn fetch_deduction_maps(conn: &Connection) -> rusqlite::Result<DeductionMaps> {
@@ -105,7 +107,18 @@ pub fn fetch_deduction_maps(conn: &Connection) -> rusqlite::Result<DeductionMaps
         }
     }
 
-    Ok(DeductionMaps { agent_aliases, category_items, categories })
+    let mut category_aliases = Vec::new();
+    {
+        let mut stmt = conn.prepare("SELECT alias, category_id FROM category_aliases")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?.to_lowercase(), row.get::<_, i64>(1)?))
+        })?;
+        for row in rows {
+            category_aliases.push(row?);
+        }
+    }
+
+    Ok(DeductionMaps { agent_aliases, category_items, categories, category_aliases })
 }
 
 /// Substring-match a hint against every agent's aliases. Longest matching alias wins on collision.
@@ -122,6 +135,11 @@ pub fn find_agent_match(hint: &str, maps: &DeductionMaps) -> Option<i64> {
 }
 
 /// (category_item_id, category_id) — tries category_items first (more specific), then categories.
+///
+/// A category is matched on its name, its slug, or any alias. Aliases exist because a category's own
+/// name frequently does not appear in folders belonging to it: nothing in "Eous Bangboo" contains
+/// "Bangboos". Longest match wins throughout, so a specific alias beats a short one that happens to
+/// be a substring of the same folder name.
 pub fn find_category_match(hint: &str, maps: &DeductionMaps) -> Option<(Option<i64>, i64)> {
     let normalized = normalize_hint(hint);
     if normalized.is_empty() {
@@ -138,11 +156,19 @@ pub fn find_category_match(hint: &str, maps: &DeductionMaps) -> Option<(Option<i
         return Some((Some(*item_id), *category_id));
     }
 
-    maps.categories
+    let by_name = maps
+        .categories
         .iter()
         .filter(|(name, slug, _)| normalized.contains(name.as_str()) || normalized.contains(slug.as_str()))
-        .max_by_key(|(name, slug, _)| name.len().max(slug.len()))
-        .map(|(_, _, category_id)| (None, *category_id))
+        .map(|(name, slug, id)| (name.len().max(slug.len()), *id));
+
+    let by_alias = maps
+        .category_aliases
+        .iter()
+        .filter(|(alias, _)| !alias.is_empty() && normalized.contains(alias.as_str()))
+        .map(|(alias, id)| (alias.len(), *id));
+
+    by_name.chain(by_alias).max_by_key(|(length, _)| *length).map(|(_, id)| (None, id))
 }
 
 pub fn has_ini_file(dir: &Path) -> bool {

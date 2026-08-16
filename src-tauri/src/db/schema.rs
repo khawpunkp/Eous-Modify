@@ -10,6 +10,10 @@ CREATE TABLE IF NOT EXISTS categories (
 CREATE TABLE IF NOT EXISTS agents (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL,
+    -- The character's name in full, where the short one above is what folders and the UI use.
+    -- Nullable: a custom agent has no separate full name, and a built-in only has one if the
+    -- definitions supply it. Readers fall back to `name`, so absent simply means "same as name".
+    full_name   TEXT,
     slug        TEXT UNIQUE NOT NULL,
     details     TEXT,
     base_image  TEXT,
@@ -26,6 +30,17 @@ CREATE TABLE IF NOT EXISTS agent_aliases (
     alias    TEXT NOT NULL,
     FOREIGN KEY (agent_id) REFERENCES agents(id) ON DELETE CASCADE,
     UNIQUE (agent_id, alias)
+);
+
+-- Alternate names a folder might use for a category, mirroring agent_aliases. Needed because a
+-- category's own name is often not what mod folders say: "Bangboos" never appears in a folder called
+-- "Eous Bangboo", but "boo" does.
+CREATE TABLE IF NOT EXISTS category_aliases (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_id INTEGER NOT NULL,
+    alias       TEXT NOT NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+    UNIQUE (category_id, alias)
 );
 
 CREATE TABLE IF NOT EXISTS category_items (
