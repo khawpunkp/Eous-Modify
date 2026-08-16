@@ -65,7 +65,7 @@ const details = reactive<AgentDetails>({ rank: '', attribute: '', speciality: ''
 
 function resetFromAgent() {
    const agent = props.initialAgent;
-   name.value = agent?.fullName ?? '';
+   name.value = agent?.name ?? '';
    baseImage.value = agent?.baseImage ?? null;
    aliases.splice(0, aliases.length, ...(agent?.aliases ?? []));
    Object.assign(details, parseAgentDetails(agent?.details ?? null));
@@ -91,6 +91,19 @@ const specialityModel = detailModel('speciality');
 const canSubmit = computed(() => /[a-z0-9]/i.test(name.value));
 
 const RANK_DETAIL = { label: 'Rank', value: details.rank, icon: RANK_ICONS[details.rank] };
+
+/**
+ * What the heading shows — the full name where there is one, otherwise whatever is in the name field.
+ *
+ * Kept apart from `name` because that ref is bound to the input and is what handleSubmit sends back
+ * as the agent's name. Seeding it from fullName made the two the same value, which is harmless only
+ * for as long as no agent has a full name that differs from its short one: the moment the
+ * definitions carry real ones, saving a built-in would write "Anby Demara" into the name the
+ * sidebar, the cards and folder matching all key off.
+ *
+ * Falls back to the live ref rather than the prop so a new agent's heading fills in as it is typed.
+ */
+const displayName = computed(() => props.initialAgent?.fullName || name.value);
 
 const statRows = computed(() =>
    [
@@ -224,7 +237,7 @@ function handleSubmit() {
             :class="{ 'p-10': !baseImage }"
          />
          <div class="flex flex-1 flex-col items-start gap-4">
-            <VueTypography variant="H1B" as="h2">{{ name }}</VueTypography>
+            <VueTypography variant="H1B" as="h2">{{ displayName }}</VueTypography>
             <div v-if="statRows.length > 0" class="flex flex-wrap gap-2">
                <div
                   class="bg-background/50 flex size-10 items-center gap-2 rounded-lg p-1"

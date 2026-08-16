@@ -19,7 +19,7 @@ Added
 Changed
 
 - Remove NPCs, Enemies, Weapons and Objects category from sidebar.
-- New artwork for every agent and every filter icon.
+- New artwork for every agent.
 - UI Overhaul
 
 Fixed
