@@ -1,4 +1,4 @@
-# # Changelog
+# Changelog
 
 The section matching a release's version is what the release workflow publishes: it becomes both the
 GitHub release body **and** the `notes` field inside `latest.json`, which is what the in-app update
@@ -6,6 +6,24 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
+
+## 0.0.6
+
+Added
+
+- Paste an image straight onto a mod or an agent to use it.
+- Bangboos category.
+- Agents' full name.
+
+Changed
+
+- Remove NPCs, Enemies, Weapons and Objects category from sidebar.
+- New artwork for every agent and every filter icon.
+- UI Overhaul
+
+Fixed
+
+- A mod with a very long name overflowed outside its card.
 
 ## 0.0.5
 

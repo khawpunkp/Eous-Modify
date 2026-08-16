@@ -1,6 +1,6 @@
 [package]
 name = "eous-modify"
-version = "0.0.5"
+version = "0.0.6"
 description = "Eous Modify"
 authors = ["im anomalocaris"]
 edition = "2024"
