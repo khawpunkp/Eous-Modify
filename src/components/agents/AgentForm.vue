@@ -90,9 +90,10 @@ const specialityModel = detailModel('speciality');
 // agent with no reachable detail page (and no way to reach its Delete button).
 const canSubmit = computed(() => /[a-z0-9]/i.test(name.value));
 
+const RANK_DETAIL = { label: 'Rank', value: details.rank, icon: RANK_ICONS[details.rank] };
+
 const statRows = computed(() =>
    [
-      { label: 'Rank', value: details.rank, icon: RANK_ICONS[details.rank] },
       { label: 'Attribute', value: details.attribute, icon: ATTRIBUTE_ICONS[details.attribute] },
       {
          label: 'Speciality',
@@ -225,16 +226,30 @@ function handleSubmit() {
          <div class="flex flex-1 flex-col items-start gap-4">
             <VueTypography variant="H1B" as="h2">{{ name }}</VueTypography>
             <div v-if="statRows.length > 0" class="flex flex-wrap gap-2">
-               <div v-for="stat in statRows" :key="stat.label">
-                  <div
-                     class="bg-background/50 flex items-center gap-2 rounded-lg p-2"
-                     v-auto-animate
-                  >
-                     <img v-if="stat.icon" :src="stat.icon" alt="" class="size-6 object-contain" />
-                     <VueTypography v-if="stat.label !== 'Rank'" variant="BodyR" as="span">
-                        {{ stat.value || '—' }}
-                     </VueTypography>
-                  </div>
+               <div
+                  class="bg-background/50 flex size-10 items-center gap-2 rounded-lg p-1"
+                  v-auto-animate
+               >
+                  <img
+                     v-if="RANK_DETAIL.icon"
+                     :src="RANK_DETAIL.icon"
+                     alt=""
+                     class="object-contain"
+                  />
+                  <VueTypography v-if="RANK_DETAIL.label !== 'Rank'" variant="BodyR" as="span">
+                     {{ RANK_DETAIL.value || '—' }}
+                  </VueTypography>
+               </div>
+               <div
+                  v-for="stat in statRows"
+                  :key="stat.label"
+                  class="bg-background/50 flex items-center gap-2 rounded-lg px-2 py-1"
+                  v-auto-animate
+               >
+                  <img v-if="stat.icon" :src="stat.icon" alt="" class="size-7 object-contain" />
+                  <VueTypography v-if="stat.label !== 'Rank'" variant="BodyR" as="span">
+                     {{ stat.value || '—' }}
+                  </VueTypography>
                </div>
             </div>
 

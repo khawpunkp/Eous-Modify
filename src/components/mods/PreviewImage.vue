@@ -19,7 +19,7 @@ defineProps<{ src: string }>();
 </script>
 
 <template>
-   <div class="bg-foreground relative w-full overflow-hidden">
+   <div class="bg-foreground relative w-full shrink-0 overflow-hidden">
       <!-- Decorative: the same picture again, standing in for a background. Over-scaled so the blur
            has something to bleed into instead of fading out at the edges. -->
       <img
