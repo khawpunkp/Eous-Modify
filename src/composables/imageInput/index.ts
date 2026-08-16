@@ -3,9 +3,18 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 
-/** Matches the file dialog's own filter, so dragging and picking accept the same things. */
+/**
+ * Both lists mirror `image_format.rs`, which is where the decision actually lives — the backend
+ * refuses anything absent from it, so a format listed only here would be accepted and then rejected
+ * on the way to disk.
+ *
+ * Bounded by what the webview can draw rather than what can be stored. HEIC, HEIF, JXL and TIFF are
+ * deliberately absent: WebView2 cannot display them, so accepting one would save a perfectly intact
+ * file and then show a broken image with nothing to explain it.
+ */
 const IMAGE_EXTENSIONS = [
    'png',
+   'apng',
    'jpg',
    'jpeg',
    'jpe',
@@ -17,43 +26,20 @@ const IMAGE_EXTENSIONS = [
    'ico',
    'bmp',
    'avif',
-   'heic',
-   'heif',
-   'jxl',
-   'apng',
-   'tif',
-   'tiff',
 ];
 
-/**
- * The same set as above, by MIME type, for the clipboard — which hands over bytes and a type rather
- * than a path.
- *
- * Checked rather than waved through because the backend decides a saved file's extension from this
- * type and falls back to `.png` for anything it does not recognise. A pasted BMP would land as
- * `mod_preview.png` holding BMP bytes, which nothing can then display.
- */
+/** The same set by MIME type, for the clipboard — which hands over bytes and a type, not a path. */
 const IMAGE_MIME_TYPES = [
-   // รูปแบบมาตรฐานสากล (รองรับทุกเบราว์เซอร์)
-   'image/jpeg',
    'image/png',
+   'image/apng',
+   'image/jpeg',
+   'image/webp',
    'image/gif',
    'image/svg+xml',
-   'image/webp',
-
-   // ไอคอนและรูปแบบบิตแมปทั่วไป
-   'image/x-icon', // หรือ "image/vnd.microsoft.icon"
+   'image/x-icon',
+   'image/vnd.microsoft.icon',
    'image/bmp',
-
-   // รูปแบบภาพสมัยใหม่ (Modern Formats)
    'image/avif',
-   'image/heic', // Safari / Apple WebKit
-   'image/heif', // Safari / Apple WebKit
-   'image/jxl', // JPEG XL (ขึ้นอยู่กับการเปิด flag หรือรองรับในบางเบราว์เซอร์)
-
-   // รูปแบบภาพเคลื่อนไหว / อื่นๆ
-   'image/apng',
-   'image/tiff', // Safari / บางแพลตฟอร์มเฉพาะทาง
 ];
 
 /** The message both paths give for something that is not a usable image. */

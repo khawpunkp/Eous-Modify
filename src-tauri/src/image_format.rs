@@ -14,6 +14,11 @@
 ///
 /// Several extensions map to one type on purpose — `jpe`/`jif`/`jfif` are all JPEG, and file
 /// managers do still produce them. The reverse direction picks the canonical one below.
+///
+/// Bounded by what the webview can draw, not by what can be stored. HEIC, HEIF, JXL and TIFF were
+/// here and are deliberately gone: WebView2 cannot display any of them, so accepting one would save
+/// a perfectly intact file and then show a broken image with nothing to explain it — which is the
+/// same silent failure this module exists to stop, only one step further along.
 const FORMATS: &[(&str, &str)] = &[
     ("png", "image/png"),
     ("apng", "image/apng"),
@@ -28,11 +33,6 @@ const FORMATS: &[(&str, &str)] = &[
     ("ico", "image/x-icon"),
     ("bmp", "image/bmp"),
     ("avif", "image/avif"),
-    ("heic", "image/heic"),
-    ("heif", "image/heif"),
-    ("jxl", "image/jxl"),
-    ("tif", "image/tiff"),
-    ("tiff", "image/tiff"),
 ];
 
 /// The extension to save under, for types with more than one spelling.
@@ -42,7 +42,6 @@ const FORMATS: &[(&str, &str)] = &[
 const CANONICAL: &[(&str, &str)] = &[
     ("image/jpeg", "jpg"),
     ("image/apng", "png"),
-    ("image/tiff", "tiff"),
     ("image/vnd.microsoft.icon", "ico"),
 ];
 
@@ -105,6 +104,18 @@ mod tests {
         assert_eq!(mime_for_extension("psd"), None);
         assert_eq!(extension_for_mime("image/vnd.adobe.photoshop"), None);
         assert_eq!(extension_for_mime("application/octet-stream"), None);
+    }
+
+    /// Storable but not drawable by the webview, so accepting them would only defer the failure to
+    /// the point where the image is shown and there is nothing left to say about it.
+    #[test]
+    fn refuses_formats_the_webview_cannot_display() {
+        for ext in ["heic", "heif", "jxl", "tif", "tiff"] {
+            assert_eq!(mime_for_extension(ext), None, ".{ext} should not be accepted");
+        }
+        for mime in ["image/heic", "image/heif", "image/jxl", "image/tiff"] {
+            assert_eq!(extension_for_mime(mime), None, "{mime} should not be accepted");
+        }
     }
 
     /// Every type in the table can be written back out, or a file could be read and then refused on
