@@ -1,9 +1,9 @@
 import type { AgentDetails } from '../types';
 
 export function resolveAgentImageSrc(baseImage: string | null): string {
-   if (!baseImage) return '/images/entities/anonymous.webp';
+   if (!baseImage) return '/images/agents/anonymous.webp';
    if (baseImage.startsWith('data:')) return baseImage;
-   return `/images/entities/${baseImage}`;
+   return `/images/agents/${baseImage}`;
 }
 
 const EMPTY_DETAILS: AgentDetails = {
@@ -32,38 +32,38 @@ export function serializeAgentDetails(details: AgentDetails): string {
 
 // Fixed filter/badge icon taxonomy, ported from the old app — shared between the rank/attribute/
 // speciality filter chips and the character card's attribute icon chips, so both always agree.
+// I-Rank is a decorated S — its own badge in-game, but the same tier. Listed here so a card can draw
+// the right icon, and left out of the filter chips on the agents page, exactly as HonedEdge, Frost
+// and AuricInk are for their parent attributes.
 export const RANK_ICONS: Record<string, string> = {
-   S: '/images/filters/zzz/s-rank.webp',
-   A: '/images/filters/zzz/a-rank.webp',
+   I: '/images/filters/i-rank.png',
+   S: '/images/filters/s-rank.png',
+   A: '/images/filters/a-rank.png',
+};
+
+/** Ranks that are a flavour of another rank, so filtering by the parent still finds them. */
+export const RANK_GROUPS: Record<string, string[]> = {
+   S: ['S', 'I'],
 };
 
 export const ATTRIBUTE_ICONS: Record<string, string> = {
-   Physical: '/images/filters/zzz/phisical.webp',
-   HonedEdge: '/images/filters/zzz/honed-edge.webp',
-   Fire: '/images/filters/zzz/fire.webp',
-   Ice: '/images/filters/zzz/ice.webp',
-   Frost: '/images/filters/zzz/frost.webp',
-   Electric: '/images/filters/zzz/electric.webp',
-   Wind: '/images/filters/zzz/wind.webp',
-   Ether: '/images/filters/zzz/ether.webp',
-   AuricInk: '/images/filters/zzz/auric-ink.webp',
-   Lumiflux: '/images/filters/zzz/lumiflux.webp',
+   Physical: '/images/filters/physical.png',
+   HonedEdge: '/images/filters/honed-edge.png',
+   Fire: '/images/filters/fire.png',
+   Ice: '/images/filters/ice.png',
+   Frost: '/images/filters/frost.png',
+   Electric: '/images/filters/electric.png',
+   Wind: '/images/filters/wind.png',
+   Ether: '/images/filters/ether.png',
+   AuricInk: '/images/filters/auric-ink.png',
+   Lumiflux: '/images/filters/lumiflux.png',
 };
 
 export const SPECIALITY_ICONS: Record<string, string> = {
-   Attack: '/images/filters/zzz/attack.webp',
-   Stun: '/images/filters/zzz/stun.webp',
-   Anomaly: '/images/filters/zzz/anomaly.webp',
-   Support: '/images/filters/zzz/support.webp',
-   Defense: '/images/filters/zzz/defense.webp',
-   Rupture: '/images/filters/zzz/rupture.webp',
+   Attack: '/images/filters/attack.png',
+   Stun: '/images/filters/stun.png',
+   Anomaly: '/images/filters/anomaly.png',
+   Support: '/images/filters/support.png',
+   Defense: '/images/filters/defense.png',
+   Rupture: '/images/filters/rupture.png',
 };
-
-/** Flat 3-color rank system ported from the old app's `getRarityColor` (case-insensitive, also
- * accepts the legacy "5 star"/"4 star" strings some early data used in place of S/A). */
-export function rankColor(rank: string): string {
-   const normalized = rank.toLowerCase();
-   if (normalized === 's' || normalized === '5 star') return '#ffcc00';
-   if (normalized === 'a' || normalized === '4 star') return '#a259ec';
-   return '#888888';
-}

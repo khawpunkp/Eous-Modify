@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { useRouter } from 'vue-router';
-import { PhUsers, PhMagnifyingGlass, PhUserPlus } from '@phosphor-icons/vue';
+import { PhDetective, PhMagnifyingGlass, PhPlusCircle } from '@phosphor-icons/vue';
 import AgentCard from '../../components/agents/AgentCard.vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueInput from '@/components/ui/input/VueInput.vue';
@@ -13,6 +13,7 @@ import { useAgentsStore } from '../../stores/agents';
 import {
    ATTRIBUTE_ICONS,
    parseAgentDetails,
+   RANK_GROUPS,
    RANK_ICONS,
    SPECIALITY_ICONS,
 } from '../../utils/agent';
@@ -20,7 +21,11 @@ import type { Agent, Mod } from '../../types';
 
 const SORT_STORAGE_KEY = 'sort_agents';
 
-const RANKS = Object.entries(RANK_ICONS).map(([key, icon]) => ({ key, icon }));
+// 'I' is excluded for the same reason the attribute variants below are: it is a flavour of S, not a
+// tier of its own, so it gets an icon but not a chip. RANK_GROUPS folds it back into S when filtering.
+const RANKS = Object.entries(RANK_ICONS)
+   .filter(([key]) => key !== 'I')
+   .map(([key, icon]) => ({ key, icon }));
 const ATTRIBUTES = Object.entries(ATTRIBUTE_ICONS)
    .filter(([key]) => !['HonedEdge', 'Frost', 'AuricInk'].includes(key))
    .map(([key, icon]) => ({
@@ -122,7 +127,10 @@ const visibleAgents = computed(() => {
 
       const details = parseAgentDetails(agent.details);
 
-      if (selectedRank.value && details.rank !== selectedRank.value) return false;
+      if (selectedRank.value) {
+         const validRanks = RANK_GROUPS[selectedRank.value] || [selectedRank.value];
+         if (!validRanks.includes(details.rank)) return false;
+      }
 
       if (selectedAttribute.value) {
          const validAttributes = attributeGroups[selectedAttribute.value] || [
@@ -162,12 +170,12 @@ const visibleAgents = computed(() => {
    <div class="flex h-full flex-col gap-6">
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="mr-auto flex items-center gap-3">
-            <PhUsers :size="32" weight="fill" />
+            <PhDetective :size="32" weight="fill" />
             Agents
          </VueTypography>
 
          <VueButton type="button" @click="router.push('/agents/new')">
-            <PhUserPlus :size="24" weight="fill" />
+            <PhPlusCircle :size="24" weight="fill" />
             Add Agent
          </VueButton>
       </div>
@@ -251,7 +259,7 @@ const visibleAgents = computed(() => {
             v-else
             v-auto-animate
             class="grid gap-6 pb-6"
-            style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr))"
+            style="grid-template-columns: repeat(auto-fill, minmax(220px, 1fr))"
          >
             <AgentCard
                v-for="agent in visibleAgents"

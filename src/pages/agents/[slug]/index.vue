@@ -297,7 +297,7 @@ function closeGroupModal() {
                   v-else
                   v-auto-animate
                   class="grid gap-4"
-                  style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"
+                  style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))"
                >
                   <GroupCard
                      v-for="group in filteredGroups"

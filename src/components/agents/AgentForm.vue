@@ -8,7 +8,7 @@ import VueInput from '@/components/ui/input/VueInput.vue';
 import Label from '@/components/ui/input/Label.vue';
 import { VueSelect } from '@/components/ui/select';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
-import { useImageDrop } from '@/composables/imageDrop';
+import { useImageInput } from '@/composables/imageInput';
 import type { Agent, AgentDetails, AgentInput } from '../../types';
 import {
    ATTRIBUTE_ICONS,
@@ -31,7 +31,7 @@ const emit = defineEmits<{
 // Reka UI's SelectItem forbids an empty-string value (that's reserved to mean "cleared, show the
 // placeholder"), so the "unset" state isn't a selectable list item here — it's represented by
 // `clearable` on each VueSelect below instead, via the rank/attribute/specialityModel proxies.
-const RANK_OPTIONS = ['S', 'A'];
+const RANK_OPTIONS = ['S', 'I', 'A'];
 const ATTRIBUTE_OPTIONS = [
    'Electric',
    'Fire',
@@ -65,7 +65,7 @@ const details = reactive<AgentDetails>({ rank: '', attribute: '', speciality: ''
 
 function resetFromAgent() {
    const agent = props.initialAgent;
-   name.value = agent?.name ?? '';
+   name.value = agent?.fullName ?? '';
    baseImage.value = agent?.baseImage ?? null;
    aliases.splice(0, aliases.length, ...(agent?.aliases ?? []));
    Object.assign(details, parseAgentDetails(agent?.details ?? null));
@@ -164,7 +164,31 @@ function applyImage(dataUrl: string) {
 async function pickImage() {
    const path = await open({
       multiple: false,
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }],
+      filters: [
+         {
+            name: 'Images',
+            extensions: [
+               'png',
+               'jpg',
+               'jpeg',
+               'jpe',
+               'jif',
+               'jfif',
+               'webp',
+               'gif',
+               'svg',
+               'ico',
+               'bmp',
+               'avif',
+               'heic',
+               'heif',
+               'jxl',
+               'apng',
+               'tif',
+               'tiff',
+            ],
+         },
+      ],
    });
    if (typeof path === 'string') {
       clearDropError();
@@ -177,7 +201,7 @@ const {
    isDraggingOver,
    errorMessage: dropError,
    clearError: clearDropError,
-} = useImageDrop(applyImage);
+} = useImageInput(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -195,15 +219,15 @@ function handleSubmit() {
          <img
             :src="resolveAgentImageSrc(baseImage)"
             alt=""
-            class="bg-foreground size-60 rounded-lg border border-white/10 object-cover"
-            :class="{ 'p-2': !baseImage }"
+            class="bg-foreground size-60 rounded-sm object-cover"
+            :class="{ 'p-10': !baseImage }"
          />
          <div class="flex flex-1 flex-col items-start gap-4">
             <VueTypography variant="H1B" as="h2">{{ name }}</VueTypography>
-            <div v-if="statRows.length > 0" class="flex flex-wrap gap-4">
-               <div v-for="stat in statRows" :key="stat.label" class="flex flex-col gap-2">
+            <div v-if="statRows.length > 0" class="flex flex-wrap gap-2">
+               <div v-for="stat in statRows" :key="stat.label">
                   <div
-                     class="bg-background/50 flex items-center gap-2 rounded-lg px-3 py-2"
+                     class="bg-background/50 flex items-center gap-2 rounded-lg p-2"
                      v-auto-animate
                   >
                      <img v-if="stat.icon" :src="stat.icon" alt="" class="size-6 object-contain" />
@@ -251,9 +275,9 @@ function handleSubmit() {
                <img
                   :src="resolveAgentImageSrc(previewImage)"
                   alt=""
-                  class="bg-foreground size-60 rounded-lg border object-cover transition-colors"
+                  class="bg-foreground size-60 rounded-sm border object-cover transition-colors"
                   :class="[
-                     { 'p-2': !previewImage },
+                     { 'p-10': !previewImage },
                      isDraggingOver ? 'border-primary border-2' : 'border-white/10',
                   ]"
                />

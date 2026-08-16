@@ -4,11 +4,11 @@ import { PhBoxArrowDown, PhCheckCircle } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import {
+   RANK_ICONS,
    ATTRIBUTE_ICONS,
-   parseAgentDetails,
-   rankColor,
-   resolveAgentImageSrc,
    SPECIALITY_ICONS,
+   parseAgentDetails,
+   resolveAgentImageSrc,
 } from '../../utils/agent';
 import type { Agent } from '../../types';
 
@@ -19,7 +19,7 @@ const props = defineProps<{
 }>();
 
 const details = computed(() => parseAgentDetails(props.agent.details));
-const barColor = computed(() => rankColor(details.value.rank));
+const rankIcon = computed(() => (details.value.rank ? RANK_ICONS[details.value.rank] : null));
 const attributeIcon = computed(() =>
    details.value.attribute ? ATTRIBUTE_ICONS[details.value.attribute] : null,
 );
@@ -33,25 +33,29 @@ const specialityIcon = computed(() =>
       <VueCard
          class="hover:border-primary/30 relative flex flex-col overflow-hidden p-0 no-underline transition-all duration-300 hover:-translate-y-1.25 hover:shadow-[0_10px_25px_rgba(0,0,0,0.3)]"
       >
-         <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-2" v-auto-animate>
-            <span
-               v-if="totalMods > 0"
-               class="bg-primary/85 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
-            >
-               <PhBoxArrowDown :size="16" weight="fill" />
-               {{ totalMods }}
-            </span>
-            <span
-               v-if="enabledMods > 0"
-               class="flex items-center gap-2 rounded-full bg-[rgba(29,209,161,0.9)] px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
-            >
-               <PhCheckCircle :size="16" weight="fill" />
-               {{ enabledMods }}
-            </span>
+         <div class="absolute top-2 left-2 z-20 flex flex-col items-center gap-1" v-auto-animate>
+            <img
+               v-if="rankIcon"
+               :src="rankIcon"
+               alt=""
+               class="bg-background size-8 rounded-sm object-contain p-0.5"
+            />
+            <img
+               v-if="specialityIcon"
+               :src="specialityIcon"
+               alt=""
+               class="bg-background size-7 rounded-full object-contain p-1"
+            />
+            <img
+               v-if="attributeIcon"
+               :src="attributeIcon"
+               alt=""
+               class="bg-background size-7 rounded-full object-contain p-1"
+            />
          </div>
 
          <div
-            class="relative z-10 flex h-55 shrink-0 items-end justify-end gap-2 overflow-hidden rounded-b-lg bg-white bg-cover bg-top p-2"
+            class="bg-foreground relative z-10 flex aspect-square shrink-0 items-end justify-end gap-2 overflow-hidden rounded-lg p-2"
          >
             <img
                :src="resolveAgentImageSrc(agent.baseImage)"
@@ -62,20 +66,23 @@ const specialityIcon = computed(() =>
                      : 'top-1/2 left-1/2 size-40 -translate-x-1/2 -translate-y-1/2 object-contain',
                ]"
             />
-            <img
-               v-if="specialityIcon"
-               :src="specialityIcon"
-               alt=""
-               class="bg-background z-10 size-9 rounded-full object-contain p-2"
-            />
-            <img
-               v-if="attributeIcon"
-               :src="attributeIcon"
-               alt=""
-               class="bg-background z-10 size-9 rounded-full object-contain p-2"
-            />
+            <div class="z-10 flex gap-2">
+               <span
+                  v-if="totalMods > 0"
+                  class="bg-primary/85 flex items-center gap-2 rounded-full px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+               >
+                  <PhBoxArrowDown :size="16" weight="fill" />
+                  {{ totalMods }}
+               </span>
+               <span
+                  v-if="enabledMods > 0"
+                  class="flex items-center gap-2 rounded-full bg-[rgba(29,209,161,0.9)] px-2 py-1 text-xs font-bold text-white shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+               >
+                  <PhCheckCircle :size="16" weight="fill" />
+                  {{ enabledMods }}
+               </span>
+            </div>
          </div>
-         <div class="-mt-4 h-10 rounded-b-lg" :style="{ backgroundColor: barColor }" />
 
          <div class="flex grow flex-col justify-center p-4 text-center">
             <VueTypography variant="BodyB" as="span">{{ agent.name }}</VueTypography>

@@ -163,7 +163,7 @@ function closeGroupModal() {
       <div class="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
          <VueTypography variant="H1B" as="h1" class="flex items-center gap-3">
             <PhDotsThreeCircle :size="32" weight="fill" />
-            Other
+            Other/Misc
          </VueTypography>
          <div class="flex items-center gap-3">
             <VueButton
@@ -213,7 +213,7 @@ function closeGroupModal() {
             v-else
             v-auto-animate
             class="grid gap-4"
-            style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr))"
+            style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr))"
          >
             <GroupCard
                v-for="group in filteredGroups"

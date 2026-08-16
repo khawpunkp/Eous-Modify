@@ -6,7 +6,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { ArchiveAnalysis } from '../../types';
 import {
-   PhUsers,
+   PhDetective,
    PhGear,
    PhPlay,
    PhFileArrowDown,
@@ -22,13 +22,10 @@ import { CATEGORY_ICONS } from '../../utils/category';
 import ImportModal from '../mods/ImportModal.vue';
 
 const navItems = [
-   { label: 'Agents', to: '/agents', icon: PhUsers },
+   { label: 'Agents', to: '/agents', icon: PhDetective },
+   { label: 'Bangboos', to: '/categories/bangboos', icon: CATEGORY_ICONS.bangboos },
    { label: 'UI', to: '/categories/ui', icon: CATEGORY_ICONS.ui },
-   { label: 'NPCs', to: '/categories/npcs', icon: CATEGORY_ICONS.npcs },
-   { label: 'Enemies', to: '/categories/enemies', icon: CATEGORY_ICONS.enemies },
-   { label: 'Weapons', to: '/categories/weapons', icon: CATEGORY_ICONS.weapons },
-   { label: 'Objects', to: '/categories/objects', icon: CATEGORY_ICONS.objects },
-   { label: 'Other', to: '/other', icon: PhDotsThreeCircle },
+   { label: 'Other/Misc', to: '/other', icon: PhDotsThreeCircle },
    { label: 'Settings', to: '/settings', icon: PhGear },
 ];
 

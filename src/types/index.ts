@@ -1,6 +1,8 @@
 export interface Agent {
    id: number;
    name: string;
+   /** The name in full. Resolved backend-side, so it equals `name` when there is no separate one. */
+   fullName: string;
    slug: string;
    details: string | null;
    baseImage: string | null;
