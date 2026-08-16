@@ -6,8 +6,9 @@ import { PhTrash } from '@phosphor-icons/vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueInput from '@/components/ui/input/VueInput.vue';
 import { VueSelect } from '@/components/ui/select';
-import { useImageDrop } from '@/composables/imageDrop';
+import { useImageInput } from '@/composables/imageInput';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import PreviewImage from './PreviewImage.vue';
 import { useAgentsStore } from '../../stores/agents';
 import { useCategoriesStore } from '../../stores/categories';
 import type { Mod, ModInput } from '../../types';
@@ -125,7 +126,7 @@ const {
    isDraggingOver,
    errorMessage: dropError,
    clearError: clearDropError,
-} = useImageDrop(applyImage);
+} = useImageInput(applyImage);
 
 function handleSubmit() {
    emit('submit', {
@@ -153,10 +154,9 @@ function handleSubmit() {
          <div class="flex flex-col items-center gap-4">
             <div class="flex w-full flex-col items-center gap-2" v-auto-animate>
                <div class="group relative w-full">
-                  <img
-                     :src="previewSrc ?? '/images/placeholder.jpg'"
-                     alt=""
-                     class="aspect-video w-full rounded-lg border object-cover transition-colors"
+                  <PreviewImage
+                     :src="previewSrc ?? '/images/no-data.png'"
+                     class="aspect-4/3 rounded-lg border transition-colors"
                      :class="isDraggingOver ? 'border-primary border-2' : 'border-white/10'"
                   />
                   <button

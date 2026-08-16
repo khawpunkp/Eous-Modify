@@ -8,6 +8,7 @@ import VueInput from '@/components/ui/input/VueInput.vue';
 import Label from '@/components/ui/input/Label.vue';
 import { VueSelect } from '@/components/ui/select';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import PreviewImage from './PreviewImage.vue';
 import { useModGroupsStore } from '../../stores/modGroups';
 import type { Mod, ModGroup } from '../../types';
 
@@ -111,10 +112,9 @@ async function handleSubmit() {
          </VueTypography>
 
          <div class="flex flex-col items-center gap-4">
-            <img
+            <PreviewImage
                :src="baseImage ?? '/images/no-data.png'"
-               alt=""
-               class="bg-foreground aspect-video w-full rounded-lg border border-white/10 object-cover"
+               class="aspect-4/3 rounded-lg border border-white/10"
             />
             <VueButton type="button" variant="outlined" size="sm" @click="pickImage">
                {{ baseImage ? 'Choose Different Image' : 'Choose Image' }}

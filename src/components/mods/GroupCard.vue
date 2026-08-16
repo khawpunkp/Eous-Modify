@@ -10,6 +10,7 @@ import {
 } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import PreviewImage from './PreviewImage.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import { useModGroupsStore } from '../../stores/modGroups';
 import type { ModGroup } from '../../types';
@@ -35,17 +36,14 @@ async function disband() {
 </script>
 
 <template>
+   <!-- min-w-0 for the same reason as ModCard: without it one unbroken group name stretches its whole
+        grid column. -->
    <VueCard
-      class="flex flex-col gap-4 p-4 transition-all"
+      class="flex min-w-0 flex-col gap-4 p-4 transition-all"
       :class="{ 'opacity-50': !group.isEnabled }"
       v-auto-animate
    >
-      <img
-         :src="group.baseImage ?? '/images/no-data.png'"
-         alt=""
-         class="bg-foreground aspect-video w-full rounded-sm"
-         :class="group.baseImage ? 'object-cover' : 'object-contain'"
-      />
+      <PreviewImage :src="group.baseImage ?? '/images/no-data.png'" class="aspect-4/3 rounded-sm" />
       <div class="flex items-center gap-2">
          <button
             type="button"
@@ -57,7 +55,7 @@ async function disband() {
             <PhCaretRight v-else :size="16" />
          </button>
          <PhStack :size="20" class="text-primary" weight="fill" />
-         <VueTypography variant="BodyB" as="span" class="grow">
+         <VueTypography variant="BodyB" as="span" class="min-w-0 grow wrap-anywhere">
             {{ group.name }}
          </VueTypography>
          <span

@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { PhPencilSimple, PhFolderOpen, PhKeyboard, PhTrash } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import PreviewImage from './PreviewImage.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
 import VueCheckbox from '@/components/ui/checkbox/VueCheckbox.vue';
 import { useModsStore } from '@/stores/mods';
@@ -64,8 +65,10 @@ function openFolder() {
 </script>
 
 <template>
+   <!-- min-w-0: a grid item will not shrink below its own min-content width, so one unbroken mod name
+        would otherwise stretch its whole column and knock the grid out of alignment. -->
    <VueCard
-      class="relative flex flex-col gap-4 p-4 transition-all"
+      class="relative flex min-w-0 flex-col gap-4 p-4 transition-all"
       :class="[
          !mod.isEnabled && 'opacity-50',
          selectMode && selected && 'outline-primary outline-2',
@@ -74,14 +77,17 @@ function openFolder() {
       v-auto-animate
    >
       <VueCheckbox v-if="selectMode" :model-value="selected" class="absolute top-2 left-2 z-10" />
-      <img
-         :src="imageSrc ?? '/images/no-data.png'"
-         alt=""
-         class="bg-foreground aspect-video w-full rounded-sm object-cover"
-      />
-      <div class="flex flex-1 flex-col gap-1" v-auto-animate>
-         <VueTypography variant="BodyB">{{ mod.name }}</VueTypography>
-         <VueTypography v-if="mod.author" variant="CaptionR" as="div" class="text-muted-foreground">
+      <PreviewImage :src="imageSrc ?? '/images/no-data.png'" class="aspect-4/3 rounded-sm" />
+      <div class="flex min-w-0 flex-1 flex-col gap-1" v-auto-animate>
+         <!-- wrap-anywhere rather than break-words: mod names arrive straight from folder names and
+              are regularly one long unpunctuated run, which break-words refuses to split. -->
+         <VueTypography variant="BodyB" class="wrap-anywhere">{{ mod.name }}</VueTypography>
+         <VueTypography
+            v-if="mod.author"
+            variant="CaptionR"
+            as="div"
+            class="text-muted-foreground wrap-anywhere"
+         >
             by {{ mod.author }}
          </VueTypography>
       </div>
