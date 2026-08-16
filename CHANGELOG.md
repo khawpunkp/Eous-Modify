@@ -12,7 +12,7 @@ emphasis show up literally; bullets and blank lines are fine.
 Added
 
 - Paste an image straight onto a mod or an agent to use it.
-- More image formats for previews
+- More image formats for previews.
 - Bangboos category.
 - Agents' full name.
 
