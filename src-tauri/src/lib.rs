@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod image_format;
 mod keybinds;
 mod mod_groups;
 mod models;

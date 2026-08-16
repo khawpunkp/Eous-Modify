@@ -145,17 +145,20 @@ fn decode_data_url(data_url: &str) -> Result<(Vec<u8>, String), String> {
     let bytes = STANDARD
         .decode(&data_url[comma + 1..])
         .map_err(|e| format!("Failed to decode image data: {}", e))?;
-    let ext = if header.contains("png") {
-        "png"
-    } else if header.contains("jpeg") || header.contains("jpg") {
-        "jpg"
-    } else if header.contains("webp") {
-        "webp"
-    } else if header.contains("gif") {
-        "gif"
-    } else {
-        "png"
-    };
+    // The type is read out of the header rather than sniffed from the bytes, then looked up — no
+    // fallback. This used to default to "png" for anything unrecognised, which wrote the bytes it had
+    // into a file named mod_preview.png regardless of what they actually were, producing a preview
+    // nothing could display and no error to say why.
+    let mime = header.strip_prefix("data:").unwrap_or(header);
+    let mime = mime.split(';').next().unwrap_or("").trim();
+    let ext = crate::image_format::extension_for_mime(mime).ok_or_else(|| {
+        format!(
+            "Eous doesn't support {} images. Try one of: {}.",
+            if mime.is_empty() { "these" } else { mime },
+            crate::image_format::supported_extensions()
+        )
+    })?;
+
     Ok((bytes, ext.to_string()))
 }
 

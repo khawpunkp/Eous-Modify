@@ -8,18 +8,17 @@ use std::path::Path;
 pub fn read_image_as_data_url(path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
 
-    let mime = match Path::new(&path)
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .map(|ext| ext.to_lowercase())
-        .as_deref()
-    {
-        Some("png") => "image/png",
-        Some("jpg") | Some("jpeg") => "image/jpeg",
-        Some("webp") => "image/webp",
-        Some("gif") => "image/gif",
-        _ => "application/octet-stream",
-    };
+    // Refused rather than sent as application/octet-stream, which the webview cannot render — so the
+    // old behaviour was a blank preview with nothing to explain it.
+    let extension =
+        Path::new(&path).extension().and_then(|ext| ext.to_str()).unwrap_or_default();
+    let mime = crate::image_format::mime_for_extension(extension).ok_or_else(|| {
+        format!(
+            "Eous doesn't support .{} images. Try one of: {}.",
+            extension,
+            crate::image_format::supported_extensions()
+        )
+    })?;
 
     Ok(format!("data:{};base64,{}", mime, STANDARD.encode(bytes)))
 }
