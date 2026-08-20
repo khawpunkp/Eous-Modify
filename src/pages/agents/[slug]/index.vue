@@ -8,11 +8,12 @@ import ModCard from '../../../components/mods/ModCard.vue';
 import GroupCard from '../../../components/mods/GroupCard.vue';
 import ModEditModal from '../../../components/mods/ModEditModal.vue';
 import GroupModal from '../../../components/mods/GroupModal.vue';
-import KeybindsPopup from '../../../components/mods/KeybindsPopup.vue';
+import KeybindsModal from '../../../components/mods/KeybindsModal.vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueInput from '@/components/ui/input/VueInput.vue';
 import { VueSelect } from '@/components/ui/select';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
+import { confirmAction } from '@/composables/confirm';
 import { useAgentsStore } from '../../../stores/agents';
 import { useModsStore } from '../../../stores/mods';
 import { useModGroupsStore } from '../../../stores/modGroups';
@@ -103,7 +104,7 @@ async function loadMods() {
 
 // A scan runs from the Sidebar, which has no idea this page is open — without listening for it, the
 // cards here stay stale until the user navigates away and back.
-let unlistenScan: UnlistenFn | null = null;
+let unlistenRefresh: UnlistenFn[] = [];
 
 onMounted(async () => {
    try {
@@ -115,12 +116,19 @@ onMounted(async () => {
    } finally {
       isLoading.value = false;
    }
-   unlistenScan = await listen('scan-complete', () => {
-      loadMods();
-   });
+   // An import fires mods-changed rather than scan-complete, and can add a mod to this very
+   // list — including when the user was already on this page, where the navigation that
+   // follows an import is a no-op and would refresh nothing.
+   for (const event of ['scan-complete', 'mods-changed']) {
+      unlistenRefresh.push(
+         await listen(event, () => {
+            loadMods();
+         }),
+      );
+   }
 });
 
-onUnmounted(() => unlistenScan?.());
+onUnmounted(() => unlistenRefresh.forEach((stop) => stop()));
 
 watch(
    () => route.params.slug,
@@ -151,7 +159,15 @@ async function handleSubmit(input: AgentInput) {
 
 async function handleDelete() {
    if (!agent.value || agent.value.isBuiltin) return;
-   if (!confirm(`Delete "${agent.value.name}"? This cannot be undone.`)) return;
+   if (
+      !(await confirmAction({
+         title: `Delete "${agent.value.name}"?`,
+         message: 'This cannot be undone.',
+         confirmLabel: 'Delete',
+         destructive: true,
+      }))
+   )
+      return;
    await agentsStore.remove(agent.value.slug);
    router.push('/agents');
 }
@@ -170,7 +186,12 @@ async function handleModRecategorize(target: { agentId?: number; categoryId?: nu
 
 async function handleModDelete(mod: Mod) {
    if (
-      !confirm(`Delete "${mod.name}"? This removes the mod folder from disk and cannot be undone.`)
+      !(await confirmAction({
+         title: `Delete "${mod.name}"?`,
+         message: 'This removes the mod folder from disk and cannot be undone.',
+         confirmLabel: 'Delete',
+         destructive: true,
+      }))
    )
       return;
    await modsStore.remove(mod.id);
@@ -340,7 +361,7 @@ function closeGroupModal() {
 
       <!-- Keyed on the mod: the popup only fetches on mount, so without this a switch straight from
            one mod to another would keep showing the previous mod's keybinds. -->
-      <KeybindsPopup
+      <KeybindsModal
          v-if="keybindsMod"
          :key="keybindsMod.id"
          :mod-id="keybindsMod.id"

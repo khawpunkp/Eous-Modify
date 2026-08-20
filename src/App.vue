@@ -2,6 +2,7 @@
 import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import AppShell from './layouts/AppShell.vue';
+import ConfirmDialog from '@/components/ui/confirm/ConfirmDialog.vue';
 import { useSettingsStore } from './stores/settings';
 import { useUpdaterStore } from './stores/updater';
 import { AUTO_RELOAD_KEY } from './utils/reload';
@@ -33,4 +34,7 @@ onMounted(async () => {
 
 <template>
    <AppShell />
+   <!-- Mounted here rather than per page: it is what every confirmAction() call renders into, and
+        outside the router view a navigation cannot take the dialog down mid-question. -->
+   <ConfirmDialog />
 </template>

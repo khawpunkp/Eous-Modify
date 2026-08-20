@@ -12,6 +12,7 @@ import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import PreviewImage from './PreviewImage.vue';
 import VueSwitch from '@/components/ui/switch/VueSwitch.vue';
+import { confirmAction } from '@/composables/confirm';
 import { useModGroupsStore } from '../../stores/modGroups';
 import type { ModGroup } from '../../types';
 
@@ -30,7 +31,15 @@ async function removeMember(modId: number) {
 }
 
 async function disband() {
-   if (!confirm(`Ungroup "${props.group.name}"? The mods themselves won't be touched.`)) return;
+   if (
+      !(await confirmAction({
+         title: `Ungroup "${props.group.name}"?`,
+         message: "The mods themselves won't be touched.",
+         confirmLabel: 'Ungroup',
+         destructive: true,
+      }))
+   )
+      return;
    await modGroupsStore.disband(props.group.id);
 }
 </script>
