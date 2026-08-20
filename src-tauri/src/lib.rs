@@ -87,6 +87,7 @@ pub fn run() {
             commands::settings::set_setting,
             commands::settings::open_mods_folder,
             commands::scanner::scan_mods_directory,
+            commands::scanner::preview_scan_moves,
             commands::scanner::analyze_archive,
             commands::scanner::import_archive,
             commands::mods::list_mods,

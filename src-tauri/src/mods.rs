@@ -5,7 +5,7 @@ use base64::{engine::general_purpose::STANDARD, Engine};
 use rusqlite::{params, Connection};
 
 use crate::models::{ModInput, ModWithState};
-use crate::scanner::archive::resolve_category_subpath;
+use crate::scanner::archive::{resolve_category_subpath, MISC_SUBDIR};
 use crate::scanner::deduce::DISABLED_PREFIX;
 
 const MOD_PREVIEW_BASENAME: &str = "mod_preview";
@@ -227,27 +227,81 @@ fn clear_saved_preview(base_mods_path: &Path, folder_name: &str) -> Option<Strin
     crate::scanner::deduce::find_preview_image(&mod_dir)
 }
 
-/// If `category_item_id` is already set, returns it unchanged. Otherwise, if `category_id` is set,
-/// resolves to that category's permanent "Other" item (seeded by `db::seed::sync_categories`) so a
-/// mod filed under a category is never left without an item. Returns `None` if `category_id` is
-/// also `None` (an agent-scoped, or fully uncategorized, mod).
-pub fn resolve_category_item_or_other(
+/// Confirms a category item really belongs to the category it is being filed under, and drops it if
+/// not.
+///
+/// This used to invent one. A mod filed under a category with no item was given that category's
+/// synthetic "Other X" item, so it landed in `ui/ui-other/` rather than `ui/`, and every category
+/// carried a child that existed only to hold the mods that had no child. Categories are flat now —
+/// bangboos, ui and misc have no sub-level at all — so no item means no item.
+///
+/// The check stays because `category_items` still exists for a category that genuinely wants
+/// sub-divisions later, and pathing a mod under an item belonging to a different category would put
+/// it somewhere neither of them describes.
+pub fn resolve_category_item(
     conn: &Connection,
     category_id: Option<i64>,
     category_item_id: Option<i64>,
 ) -> Result<Option<i64>, String> {
-    if category_item_id.is_some() {
-        return Ok(category_item_id);
-    }
-    let Some(category_id) = category_id else { return Ok(None) };
+    let (Some(category_id), Some(item_id)) = (category_id, category_item_id) else {
+        return Ok(None);
+    };
 
-    let category_slug: String = conn
-        .query_row("SELECT slug FROM categories WHERE id = ?1", params![category_id], |row| row.get(0))
+    let belongs: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM category_items WHERE id = ?1 AND category_id = ?2)",
+            params![item_id, category_id],
+            |row| row.get(0),
+        )
         .map_err(|e| e.to_string())?;
-    let other_slug = format!("{}-other", category_slug);
-    conn.query_row("SELECT id FROM category_items WHERE slug = ?1", params![other_slug], |row| row.get(0))
-        .map(Some)
-        .map_err(|e| e.to_string())
+
+    Ok(if belongs { Some(item_id) } else { None })
+}
+
+/// Where a mod with no agent and no category goes: `misc/`, keeping whatever folders it was already
+/// sitting in underneath.
+///
+/// The nesting is the point. Deduction reads a mod's path looking for an agent alias or a category
+/// name, so `Astra Stuff/skin01` is matchable while a bare `skin01` is not. Flattening an unmatched
+/// mod into `misc/skin01` would delete the only evidence of what it is, and no later rescan could
+/// recover it — not even after the agent it belongs to is added.
+///
+/// A leading `misc/` is stripped first so running this twice does not produce `misc/misc/...`.
+fn misc_subpath(old_folder_name: &str) -> PathBuf {
+    let parent = Path::new(old_folder_name).parent().unwrap_or(Path::new(""));
+    let kept = parent.strip_prefix(MISC_SUBDIR).unwrap_or(parent);
+    PathBuf::from(MISC_SUBDIR).join(kept)
+}
+
+/// The `folder_name` a mod would have if it were placed according to the given assignment.
+///
+/// Split out of `update_mod_category` so a dry run can ask where a mod would go without moving it.
+/// Both call it, which is what keeps a preview honest.
+pub fn planned_folder_name(
+    conn: &Connection,
+    current_folder_name: &str,
+    agent_id: Option<i64>,
+    category_id: Option<i64>,
+    category_item_id: Option<i64>,
+) -> Result<String, String> {
+    // Matches update_mod_category: an agent assignment clears any category, and vice versa.
+    let (agent_id, category_id) =
+        if agent_id.is_some() { (agent_id, None) } else { (None, category_id) };
+    let resolved_item_id = resolve_category_item(conn, category_id, category_item_id)?;
+
+    let dest_subpath = if agent_id.is_none() && category_id.is_none() {
+        misc_subpath(current_folder_name)
+    } else {
+        resolve_category_subpath(conn, agent_id, category_id, resolved_item_id)?
+    };
+
+    let base_name = Path::new(current_folder_name)
+        .file_name()
+        .ok_or_else(|| "Invalid mod folder name.".to_string())?
+        .to_string_lossy()
+        .to_string();
+
+    Ok(dest_subpath.join(&base_name).to_string_lossy().replace('\\', "/"))
 }
 
 /// Reassigns a mod to a different agent or category (mutually exclusive — passing `agent_id`
@@ -267,9 +321,13 @@ pub fn update_mod_category(
         .map_err(|e| e.to_string())?;
 
     let (agent_id, category_id) = if agent_id.is_some() { (agent_id, None) } else { (None, category_id) };
-    let resolved_item_id = resolve_category_item_or_other(conn, category_id, category_item_id)?;
+    let resolved_item_id = resolve_category_item(conn, category_id, category_item_id)?;
 
-    let dest_subpath = resolve_category_subpath(conn, agent_id, category_id, resolved_item_id)?;
+    let dest_subpath = if agent_id.is_none() && category_id.is_none() {
+        misc_subpath(&old_folder_name)
+    } else {
+        resolve_category_subpath(conn, agent_id, category_id, resolved_item_id)?
+    };
     let base_name = Path::new(&old_folder_name)
         .file_name()
         .ok_or_else(|| "Invalid mod folder name.".to_string())?
@@ -466,23 +524,63 @@ mod tests {
     }
 
     #[test]
-    fn resolve_category_item_or_other_returns_given_item_unchanged() {
+    fn misc_keeps_the_folders_a_mod_was_already_in() {
+        assert_eq!(misc_subpath("Astra Stuff/skin01"), PathBuf::from("misc/Astra Stuff"));
+    }
+
+    #[test]
+    fn misc_takes_a_top_level_mod_straight_in() {
+        assert_eq!(misc_subpath("skin01"), PathBuf::from("misc"));
+    }
+
+    /// Otherwise a second scan would file it at misc/misc/Astra Stuff/skin01, and a third one deeper
+    /// again.
+    #[test]
+    fn misc_does_not_nest_inside_itself() {
+        assert_eq!(misc_subpath("misc/Astra Stuff/skin01"), PathBuf::from("misc/Astra Stuff"));
+        assert_eq!(misc_subpath("misc/skin01"), PathBuf::from("misc"));
+    }
+
+    /// A retired category leaves its name behind as a hint, so re-adding it can reclaim the mod.
+    #[test]
+    fn misc_preserves_a_retired_category_folder() {
+        assert_eq!(misc_subpath("enemies/RandomReskin"), PathBuf::from("misc/enemies"));
+    }
+
+    #[test]
+    fn resolve_category_item_keeps_an_item_that_belongs_to_the_category() {
         let (conn, base) = setup_category_test_db_and_dir();
-        assert_eq!(resolve_category_item_or_other(&conn, Some(1), Some(42)).unwrap(), Some(42));
+        assert_eq!(resolve_category_item(&conn, Some(1), Some(1)).unwrap(), Some(1));
+        fs::remove_dir_all(&base).ok();
+    }
+
+    /// Previously this invented the category's "Other X" item, which is what sent a category's own
+    /// mods one folder deeper than the category itself.
+    #[test]
+    fn resolve_category_item_no_longer_invents_one() {
+        let (conn, base) = setup_category_test_db_and_dir();
+        assert_eq!(resolve_category_item(&conn, Some(1), None).unwrap(), None);
+        fs::remove_dir_all(&base).ok();
+    }
+
+    /// An item under a different category would path the mod somewhere neither of them names.
+    #[test]
+    fn resolve_category_item_drops_an_item_from_another_category() {
+        let (conn, base) = setup_category_test_db_and_dir();
+        conn.execute("INSERT INTO categories (id, name, slug) VALUES (2, 'UI', 'ui')", []).unwrap();
+        conn.execute(
+            "INSERT INTO category_items (id, category_id, name, slug) VALUES (2, 2, 'HUD', 'hud')",
+            [],
+        )
+        .unwrap();
+        assert_eq!(resolve_category_item(&conn, Some(1), Some(2)).unwrap(), None);
         fs::remove_dir_all(&base).ok();
     }
 
     #[test]
-    fn resolve_category_item_or_other_falls_back_to_other_item() {
+    fn resolve_category_item_returns_none_without_category() {
         let (conn, base) = setup_category_test_db_and_dir();
-        assert_eq!(resolve_category_item_or_other(&conn, Some(1), None).unwrap(), Some(1));
-        fs::remove_dir_all(&base).ok();
-    }
-
-    #[test]
-    fn resolve_category_item_or_other_returns_none_without_category() {
-        let (conn, base) = setup_category_test_db_and_dir();
-        assert_eq!(resolve_category_item_or_other(&conn, None, None).unwrap(), None);
+        assert_eq!(resolve_category_item(&conn, None, None).unwrap(), None);
         fs::remove_dir_all(&base).ok();
     }
 
@@ -505,8 +603,8 @@ mod tests {
         assert_eq!(updated.agent_id, Some(1));
         assert_eq!(updated.category_id, None);
         assert_eq!(updated.category_item_id, None);
-        assert_eq!(updated.folder_name, "ellen/SomeMod");
-        assert!(base.join("ellen").join("SomeMod").is_dir());
+        assert_eq!(updated.folder_name, "agents/ellen/SomeMod");
+        assert!(base.join("agents").join("ellen").join("SomeMod").is_dir());
         assert!(!base.join(old_folder).is_dir());
 
         fs::remove_dir_all(&base).ok();
@@ -528,8 +626,8 @@ mod tests {
 
         let updated = update_mod_category(&conn, &base, mod_id, Some(1), None, None).expect("move should succeed");
 
-        assert_eq!(updated.folder_name, "ellen/SomeMod");
-        assert!(base.join("ellen").join(format!("{}SomeMod", DISABLED_PREFIX)).is_dir());
+        assert_eq!(updated.folder_name, "agents/ellen/SomeMod");
+        assert!(base.join("agents").join("ellen").join(format!("{}SomeMod", DISABLED_PREFIX)).is_dir());
 
         fs::remove_dir_all(&base).ok();
     }

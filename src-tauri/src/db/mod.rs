@@ -123,6 +123,40 @@ fn migrate_add_mod_group_base_image(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
+/// Removes the synthetic `<category>-other` items earlier versions created for every category.
+///
+/// They existed so a mod filed under a category always had an item, which meant it landed in
+/// `ui/ui-other/` rather than `ui/`. Categories are flat now, so those rows would only keep sending
+/// mods one level too deep.
+///
+/// The references are cleared by hand rather than left to the foreign key. Migrations run before the
+/// schema batch that turns `PRAGMA foreign_keys` on, so `ON DELETE SET NULL` would not fire here and
+/// the mods would keep pointing at rows that no longer exist.
+///
+/// Idempotent: once the rows are gone there is nothing left to match.
+fn migrate_flatten_category_items(conn: &Connection) -> rusqlite::Result<()> {
+    let table_exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'category_items')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !table_exists {
+        return Ok(());
+    }
+
+    conn.execute(
+        "UPDATE mods SET category_item_id = NULL WHERE category_item_id IN
+             (SELECT id FROM category_items WHERE slug LIKE '%-other')",
+        [],
+    )?;
+    let removed = conn.execute("DELETE FROM category_items WHERE slug LIKE '%-other'", [])?;
+    if removed > 0 {
+        eprintln!("[db] removed {} synthetic catch-all category item(s)", removed);
+    }
+
+    Ok(())
+}
+
 /// Adds `agents.full_name` to installs created before agents carried one. Same shape as the
 /// migration above: idempotent through the column check, so it needs no settings flag.
 ///
@@ -192,6 +226,7 @@ pub fn init_db(app_data_dir: &Path) -> rusqlite::Result<Connection> {
     migrate_drop_mod_agent_description(&conn)?;
     migrate_add_mod_group_base_image(&conn)?;
     migrate_add_agent_full_name(&conn)?;
+    migrate_flatten_category_items(&conn)?;
     repair_unnamed_agents(&conn)?;
     migrate_add_agent_custom_image(&conn)?;
     conn.execute_batch(schema::SCHEMA)?;

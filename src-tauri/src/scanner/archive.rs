@@ -322,6 +322,14 @@ pub fn analyze(file_path: &Path, maps: &DeductionMaps) -> Result<ArchiveAnalysis
 /// Where a mod with this agent/category/category-item assignment lives on disk, relative to the
 /// mods folder root. Shared by archive import and by `mods::update_mod_category`'s on-disk move,
 /// so the two never disagree about a mod's expected location.
+/// Everything belonging to a named agent lives under this one folder, so the top of the mods
+/// directory holds a handful of category folders rather than one per character.
+pub(crate) const AGENTS_SUBDIR: &str = "agents";
+
+/// Where a mod with no agent and no category goes. A real folder rather than a marker: it is a
+/// destination the user can also pick by hand, and it is what the Other/Misc page lists.
+pub(crate) const MISC_SUBDIR: &str = "misc";
+
 pub(crate) fn resolve_category_subpath(
     conn: &Connection,
     agent_id: Option<i64>,
@@ -332,7 +340,7 @@ pub(crate) fn resolve_category_subpath(
         let slug: String = conn
             .query_row("SELECT slug FROM agents WHERE id = ?1", params![agent_id], |row| row.get(0))
             .map_err(|e| e.to_string())?;
-        return Ok(PathBuf::from(slug));
+        return Ok(PathBuf::from(AGENTS_SUBDIR).join(slug));
     }
 
     if let Some(item_id) = category_item_id {
@@ -353,7 +361,7 @@ pub(crate) fn resolve_category_subpath(
         return Ok(PathBuf::from(slug));
     }
 
-    Ok(PathBuf::from("_uncategorized"))
+    Ok(PathBuf::from(MISC_SUBDIR))
 }
 
 pub fn import(
@@ -370,7 +378,7 @@ pub fn import(
     }
 
     let resolved_item_id =
-        crate::mods::resolve_category_item_or_other(conn, request.category_id, request.category_item_id)?;
+        crate::mods::resolve_category_item(conn, request.category_id, request.category_item_id)?;
     let dest_subpath =
         resolve_category_subpath(conn, request.agent_id, request.category_id, resolved_item_id)?;
     let target_folder_name = request.mod_name.trim().replace([' ', '.', '\'', '"'], "_");

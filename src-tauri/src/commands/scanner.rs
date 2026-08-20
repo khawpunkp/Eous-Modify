@@ -64,11 +64,26 @@ pub fn analyze_archive(archive_path: String, state: State<DbState>) -> Result<Ar
     archive::analyze(&PathBuf::from(archive_path), &maps)
 }
 
+/// Reports what a scan would move, without moving anything.
+///
+/// A scan rewrites the folder layout of an entire mods library in one pass and nothing undoes it, so
+/// being able to read the list first is worth a command of its own.
 #[tauri::command]
-pub fn import_archive(request: ImportArchiveRequest, state: State<DbState>) -> Result<i64, String> {
+pub fn preview_scan_moves(state: State<DbState>) -> Result<Vec<scanner::PlannedMove>, String> {
+    let mods_path = get_mods_folder(&state)?;
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    scanner::plan_scan(&conn, &mods_path)
+}
+
+#[tauri::command]
+pub fn import_archive(
+    request: ImportArchiveRequest,
+    state: State<DbState>,
+    app_handle: AppHandle,
+) -> Result<i64, String> {
     let mods_path = get_mods_folder(&state)?;
     let mut conn = state.0.lock().map_err(|e| e.to_string())?;
-    archive::import(
+    let result = archive::import(
         &mut conn,
         &PathBuf::from(&request.archive_path),
         &mods_path,
@@ -80,5 +95,15 @@ pub fn import_archive(request: ImportArchiveRequest, state: State<DbState>) -> R
             mod_name: request.mod_name,
             author: request.author,
         },
-    )
+    );
+
+    // Announced for the same reason `scan-complete` is: an import adds a mod to a list that may be on
+    // screen right now, and the page showing it has no other way to find out. Navigating to the
+    // destination is not enough on its own — importing to the page you are already looking at is a
+    // no-op for the router, so nothing would refetch.
+    if result.is_ok() {
+        app_handle.emit("mods-changed", ()).ok();
+    }
+
+    result
 }

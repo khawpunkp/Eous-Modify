@@ -62,6 +62,8 @@ pub struct DeductionMaps {
     categories: Vec<(String, String, i64)>,
     /// (lowercase alias, category_id)
     category_aliases: Vec<(String, i64)>,
+    /// Every agent's own slug, lowercase — for recognising an agent's folder rather than a mention.
+    agent_slugs: Vec<String>,
 }
 
 pub fn fetch_deduction_maps(conn: &Connection) -> rusqlite::Result<DeductionMaps> {
@@ -118,7 +120,16 @@ pub fn fetch_deduction_maps(conn: &Connection) -> rusqlite::Result<DeductionMaps
         }
     }
 
-    Ok(DeductionMaps { agent_aliases, category_items, categories, category_aliases })
+    let mut agent_slugs = Vec::new();
+    {
+        let mut stmt = conn.prepare("SELECT slug FROM agents")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        for row in rows {
+            agent_slugs.push(row?.to_lowercase());
+        }
+    }
+
+    Ok(DeductionMaps { agent_aliases, category_items, categories, category_aliases, agent_slugs })
 }
 
 /// Substring-match a hint against every agent's aliases. Longest matching alias wins on collision.
@@ -289,22 +300,30 @@ pub fn deduce_mod_info(mod_folder_path: &Path, base_mods_path: &Path, maps: &Ded
     let mut ini_target_hint: Option<String> = None;
     let mut ini_type_hint: Option<String> = None;
 
-    let mut found_agent_id = find_agent_match(&mod_folder_name, maps);
-
-    if found_agent_id.is_none() {
-        let mut current = mod_folder_path.parent();
-        while let Some(path) = current {
-            if path == base_mods_path || path.parent() == Some(base_mods_path) {
+    // Parents before the mod's own name, nearest first. A mod folder is often named for what it
+    // changes ("skin01", "face_v2") while the folder holding it is named for who it belongs to, so
+    // the enclosing folder is the more reliable signal of the two.
+    //
+    // The walk used to stop before any folder sitting directly under the mods root, which meant a
+    // top-level folder was never read at all — so "Astra Shining Eridu/skin01" matched nothing, the
+    // one arrangement this is most likely to meet.
+    let mut found_agent_id = None;
+    let mut current = mod_folder_path.parent();
+    while let Some(path) = current {
+        if path == base_mods_path {
+            break;
+        }
+        if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+            if let Some(agent_id) = find_agent_match(name, maps) {
+                found_agent_id = Some(agent_id);
                 break;
             }
-            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                if let Some(agent_id) = find_agent_match(name, maps) {
-                    found_agent_id = Some(agent_id);
-                    break;
-                }
-            }
-            current = path.parent();
         }
+        current = path.parent();
+    }
+
+    if found_agent_id.is_none() {
+        found_agent_id = find_agent_match(&mod_folder_name, maps);
     }
 
     if let Some(ini_path) = find_ini_path(mod_folder_path) {
@@ -383,4 +402,14 @@ pub fn deduce_mod_info(mod_folder_path: &Path, base_mods_path: &Path, maps: &Ded
 
     info.name = clean_mod_name(&info.name, &mod_folder_name);
     info
+}
+
+/// Whether `name` is exactly the slug of some agent.
+///
+/// Distinct from `find_agent_match`, which looks for an alias *inside* a longer string. Here the
+/// question is whether a folder is an agent's own folder, and only an exact slug answers that — the
+/// pre-`agents/` layout wrote them as `<slug>/`, and each holds every mod for that character.
+pub fn agent_slug_exists(name: &str, maps: &DeductionMaps) -> bool {
+    let lowered = name.to_lowercase();
+    maps.agent_slugs.iter().any(|slug| *slug == lowered)
 }
