@@ -31,7 +31,7 @@ const specialityIcon = computed(() =>
 <template>
    <RouterLink :to="`/agents/${agent.slug}`" class="block">
       <VueCard
-         class="hover:border-primary/30 relative flex flex-col overflow-hidden p-0 no-underline transition-all duration-300 hover:-translate-y-1.25 hover:shadow-[0_10px_25px_rgba(0,0,0,0.3)]"
+         class="relative flex flex-col overflow-hidden p-0 no-underline transition-all duration-300 hover:-translate-y-1.25"
       >
          <div class="absolute top-2 left-2 z-20 flex flex-col items-center gap-1" v-auto-animate>
             <img
