@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { ArchiveAnalysis } from '../../types';
+import type { ArchiveAnalysis, PlannedMove } from '../../types';
 import {
    PhDetective,
    PhGear,
@@ -55,6 +55,12 @@ const isScanning = ref(false);
 const scanMessage = ref<string | null>(null);
 const scanError = ref<string | null>(null);
 const showScanResult = ref(false);
+
+// A scan rewrites the folder layout of the whole mods library in one pass, and nothing undoes it. The
+// preview runs the same rules and reports instead of writing, so the list can be read first.
+const isPreviewing = ref(false);
+const plannedMoves = ref<PlannedMove[] | null>(null);
+const previewError = ref<string | null>(null);
 
 // Polled rather than event-driven: a process starting or stopping is not something the OS reports to
 // us, and the sidebar is mounted for the app's whole life, so a cheap check every few seconds is both
@@ -146,6 +152,18 @@ function closeImport() {
    importAnalysis.value = null;
 }
 
+/**
+ * Takes the user to the page the mod landed on, so an import ends somewhere it can be seen.
+ *
+ * Importing to the page already on screen makes this a no-op — the router will not re-navigate to
+ * the route it is already on. The list still refreshes: the backend emits `mods-changed`, which every
+ * mod list listens for.
+ */
+function handleImported(destination: string) {
+   closeImport();
+   if (route.path !== destination) router.push(destination);
+}
+
 async function openModsFolder() {
    openFolderError.value = null;
    try {
@@ -153,6 +171,25 @@ async function openModsFolder() {
    } catch (e) {
       openFolderError.value = String(e);
    }
+}
+
+async function previewScan() {
+   isPreviewing.value = true;
+   previewError.value = null;
+   plannedMoves.value = null;
+   try {
+      plannedMoves.value = await invoke<PlannedMove[]>('preview_scan_moves');
+   } catch (e) {
+      previewError.value = String(e);
+   } finally {
+      isPreviewing.value = false;
+   }
+}
+
+/** Runs the scan the preview was describing, straight from the preview itself. */
+async function confirmPreviewedScan() {
+   plannedMoves.value = null;
+   await runScan();
 }
 
 async function runScan() {
@@ -258,24 +295,97 @@ async function runScan() {
             </VueTypography>
          </div>
 
-         <VueButton
-            variant="outlined"
-            class="w-full justify-center"
-            :disabled="isScanning || !modsFolderPath"
-            @click="runScan"
-         >
-            <PhArrowsClockwise :size="24" weight="fill" />
-            {{ isScanning ? 'Scanning…' : 'Scan Mods Folder' }}
-         </VueButton>
+         <div class="flex flex-col gap-2">
+            <VueButton
+               variant="outlined"
+               class="w-full justify-center"
+               :disabled="isScanning || !modsFolderPath"
+               @click="runScan"
+            >
+               <PhArrowsClockwise :size="24" weight="fill" />
+               {{ isScanning ? 'Scanning…' : 'Scan Mods Folder' }}
+            </VueButton>
+            <VueButton
+               variant="ghost"
+               color="gray"
+               size="sm"
+               class="w-full justify-center"
+               :disabled="isPreviewing || isScanning || !modsFolderPath"
+               @click="previewScan"
+            >
+               {{ isPreviewing ? 'Checking…' : 'Preview changes' }}
+            </VueButton>
+            <VueTypography v-if="previewError" variant="CaptionR" as="p" class="text-destructive">
+               {{ previewError }}
+            </VueTypography>
+         </div>
       </div>
 
       <ImportModal
          v-if="isImporting && importArchivePath && importAnalysis"
          :archive-path="importArchivePath"
          :analysis="importAnalysis"
-         @imported="closeImport"
+         @imported="handleImported"
          @close="closeImport"
       />
+
+      <div
+         v-if="plannedMoves"
+         class="fixed inset-0 z-100 flex items-center justify-center bg-black/60"
+         @click.self="plannedMoves = null"
+      >
+         <div
+            class="bg-card flex max-h-[85vh] w-11/12 max-w-200 flex-col gap-4 overflow-hidden rounded-lg border border-white/10 p-6"
+         >
+            <VueTypography variant="TitleB" as="h2">Preview changes</VueTypography>
+            <VueTypography variant="CaptionR" as="p" class="text-muted-foreground">
+               {{
+                  plannedMoves.length === 0
+                     ? 'Every mod is already where it belongs. A scan would move nothing.'
+                     : `A scan would move ${plannedMoves.length} mod ${plannedMoves.length === 1 ? 'folder' : 'folders'}. Nothing has been changed yet.`
+               }}
+            </VueTypography>
+
+            <!-- Its own scroll container, so a library of a few hundred mods does not push the
+                 buttons off the bottom of the dialog. -->
+            <div
+               v-if="plannedMoves.length > 0"
+               class="flex min-h-0 flex-col gap-2 overflow-y-auto pr-2"
+            >
+               <div
+                  v-for="move in plannedMoves"
+                  :key="move.from"
+                  class="flex flex-col gap-1 rounded-md bg-white/5 p-3"
+               >
+                  <VueTypography variant="CaptionR" as="span" class="text-muted-foreground wrap-anywhere">
+                     {{ move.from }}
+                  </VueTypography>
+                  <VueTypography variant="CaptionB" as="span" class="wrap-anywhere">
+                     → {{ move.to }}
+                  </VueTypography>
+               </div>
+            </div>
+
+            <div class="flex justify-end gap-3">
+               <VueButton
+                  type="button"
+                  variant="outlined"
+                  class="min-w-32"
+                  @click="plannedMoves = null"
+               >
+                  Close
+               </VueButton>
+               <VueButton
+                  v-if="plannedMoves.length > 0"
+                  type="button"
+                  class="min-w-32"
+                  @click="confirmPreviewedScan"
+               >
+                  Scan now
+               </VueButton>
+            </div>
+         </div>
+      </div>
 
       <div
          v-if="showScanResult"

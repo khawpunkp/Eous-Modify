@@ -17,7 +17,8 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
    close: [];
-   imported: [];
+   /** The route the mod landed on, so the caller can take the user there. */
+   imported: [destination: string];
 }>();
 
 const hasFixedTarget = props.agentId !== undefined || props.categoryId !== undefined;
@@ -34,13 +35,13 @@ const deducedTarget =
 const pickedTarget = ref(hasFixedTarget ? '' : deducedTarget);
 
 const targetOptions = computed(() => [
-   ...agentsStore.agents.map((agent) => ({
-      label: `Character: ${agent.name}`,
-      value: `agent:${agent.id}`,
-   })),
    ...categoriesStore.categories.map((category) => ({
-      label: `Category: ${category.name}`,
+      label: category.name,
       value: `category:${category.id}`,
+   })),
+   ...agentsStore.agents.map((agent) => ({
+      label: agent.name,
+      value: `agent:${agent.id}`,
    })),
 ]);
 
@@ -69,6 +70,25 @@ onMounted(() => {
    if (categoriesStore.categories.length === 0) categoriesStore.fetchAll();
 });
 
+/**
+ * The page that now lists this mod.
+ *
+ * Resolved here rather than returned by the backend because the ids came from this form in the first
+ * place, and both stores are already loaded to populate the picker above.
+ */
+function destinationRoute(agentId: number | null, categoryId: number | null): string {
+   if (agentId !== null) {
+      const agent = agentsStore.agents.find((a) => a.id === agentId);
+      if (agent) return `/agents/${agent.slug}`;
+   }
+   if (categoryId !== null) {
+      const category = categoriesStore.categories.find((c) => c.id === categoryId);
+      if (category) return `/categories/${category.slug}`;
+   }
+   // No agent and no category means the mod went to misc, which is what Other/Misc lists.
+   return '/other';
+}
+
 async function handleImport() {
    if (!form.modName.trim()) return;
    if (!hasFixedTarget && !pickedTarget.value) return;
@@ -93,7 +113,7 @@ async function handleImport() {
          author: form.author.trim() || null,
       };
       await invoke('import_archive', { request });
-      emit('imported');
+      emit('imported', destinationRoute(request.agentId, request.categoryId));
    } catch (e) {
       errorMessage.value = String(e);
    } finally {

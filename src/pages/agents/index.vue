@@ -81,7 +81,7 @@ async function loadAgentsAndCounts() {
 
 // A scan runs from the Sidebar, so this page has no idea its counts went stale. Listening for the
 // same scan-complete event the Sidebar uses keeps them fresh without coupling the two components.
-let unlistenScan: UnlistenFn | null = null;
+let unlistenRefresh: UnlistenFn[] = [];
 
 onMounted(async () => {
    try {
@@ -89,13 +89,20 @@ onMounted(async () => {
    } finally {
       isLoading.value = false;
    }
-   unlistenScan = await listen('scan-complete', () => {
-      loadAgentsAndCounts();
-   });
+   // An import fires mods-changed rather than scan-complete, and can add a mod to this very
+   // list — including when the user was already on this page, where the navigation that
+   // follows an import is a no-op and would refresh nothing.
+   for (const event of ['scan-complete', 'mods-changed']) {
+      unlistenRefresh.push(
+         await listen(event, () => {
+            loadAgentsAndCounts();
+         }),
+      );
+   }
 });
 
 onUnmounted(() => {
-   unlistenScan?.();
+   unlistenRefresh.forEach((stop) => stop());
 });
 
 watch(sortOption, (value) => localStorage.setItem(SORT_STORAGE_KEY, value));

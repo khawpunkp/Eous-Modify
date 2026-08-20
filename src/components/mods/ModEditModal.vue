@@ -51,26 +51,31 @@ const canClearImage = computed(() => {
    );
 });
 
+/** Belonging to no agent and no category — what the Other/Misc page lists. */
+const NO_TARGET = 'none';
+
 const currentTarget =
    props.mod.agentId !== null
       ? `agent:${props.mod.agentId}`
       : props.mod.categoryId !== null
         ? `category:${props.mod.categoryId}`
-        : '';
+        : NO_TARGET;
 const selectedTarget = ref(currentTarget);
 
-const canMove = computed(
-   () => selectedTarget.value !== '' && selectedTarget.value !== currentTarget,
-);
+const canMove = computed(() => selectedTarget.value !== currentTarget);
 
+// Other/Misc is offered like any other destination. It used to be the empty string — a current value
+// with no option to match it — so a mod could be moved out of Other/Misc but never back into it,
+// which became the only way out of a category once four of them were retired.
 const categoryOptions = computed(() => [
-   ...agentsStore.agents.map((agent) => ({
-      label: `Character: ${agent.name}`,
-      value: `agent:${agent.id}`,
-   })),
+   { label: 'Other/Misc', value: NO_TARGET },
    ...categoriesStore.categories.map((category) => ({
       label: `Category: ${category.name}`,
       value: `category:${category.id}`,
+   })),
+   ...agentsStore.agents.map((agent) => ({
+      label: `Character: ${agent.name}`,
+      value: `agent:${agent.id}`,
    })),
 ]);
 
@@ -137,9 +142,14 @@ function handleSubmit() {
    });
 
    if (canMove.value) {
-      const [kind, idStr] = selectedTarget.value.split(':');
-      const id = Number(idStr);
-      emit('recategorize', kind === 'agent' ? { agentId: id } : { categoryId: id });
+      if (selectedTarget.value === NO_TARGET) {
+         // Neither id set: the backend reads that as uncategorised and moves the folder accordingly.
+         emit('recategorize', {});
+      } else {
+         const [kind, idStr] = selectedTarget.value.split(':');
+         const id = Number(idStr);
+         emit('recategorize', kind === 'agent' ? { agentId: id } : { categoryId: id });
+      }
    }
 }
 </script>
