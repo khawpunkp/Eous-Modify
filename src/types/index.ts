@@ -108,9 +108,3 @@ export interface KeybindInfo {
    title: string;
    key: string;
 }
-
-/** One folder a scan would move, as reported by `preview_scan_moves`. */
-export interface PlannedMove {
-   from: string;
-   to: string;
-}

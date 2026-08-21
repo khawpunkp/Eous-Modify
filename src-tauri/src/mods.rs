@@ -289,37 +289,6 @@ fn misc_subpath(old_folder_name: &str) -> PathBuf {
     PathBuf::from(MISC_SUBDIR).join(kept)
 }
 
-/// The `folder_name` a mod would have if it were placed according to the given assignment.
-///
-/// Split out of `update_mod_category` so a dry run can ask where a mod would go without moving it.
-/// Both call it, which is what keeps a preview honest.
-pub fn planned_folder_name(
-    conn: &Connection,
-    current_folder_name: &str,
-    agent_id: Option<i64>,
-    category_id: Option<i64>,
-    category_item_id: Option<i64>,
-) -> Result<String, String> {
-    // Matches update_mod_category: an agent assignment clears any category, and vice versa.
-    let (agent_id, category_id) =
-        if agent_id.is_some() { (agent_id, None) } else { (None, category_id) };
-    let resolved_item_id = resolve_category_item(conn, category_id, category_item_id)?;
-
-    let dest_subpath = if agent_id.is_none() && category_id.is_none() {
-        misc_subpath(current_folder_name)
-    } else {
-        resolve_category_subpath(conn, agent_id, category_id, resolved_item_id)?
-    };
-
-    let base_name = Path::new(current_folder_name)
-        .file_name()
-        .ok_or_else(|| "Invalid mod folder name.".to_string())?
-        .to_string_lossy()
-        .to_string();
-
-    Ok(dest_subpath.join(&base_name).to_string_lossy().replace('\\', "/"))
-}
-
 /// Reassigns a mod to a different agent or category (mutually exclusive — passing `agent_id`
 /// clears any category assignment, and vice versa), moving its folder on disk to match via
 /// `resolve_category_subpath` — the same logic archive import uses — so `folder_name` and the

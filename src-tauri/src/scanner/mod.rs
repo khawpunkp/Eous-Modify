@@ -1,12 +1,11 @@
 pub mod archive;
 pub mod deduce;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection};
-use serde::Serialize;
 use walkdir::WalkDir;
 
 use deduce::{
@@ -134,14 +133,9 @@ struct WalkOutcome {
 }
 
 /// Finds every mod folder, and decides which folder *is* the mod.
-///
-/// Shared by the real scan and the dry run on purpose. A dry run that worked this out separately
-/// could disagree with the scan it is supposed to be previewing, which would make it worse than
-/// having none — so there is one implementation and `apply_renames` is the only thing that differs.
 fn walk_mod_folders(
     base_mods_path: &Path,
     maps: &DeductionMaps,
-    apply_renames: bool,
     mut on_progress: impl FnMut(usize, &str),
 ) -> WalkOutcome {
     let mut mods = Vec::new();
@@ -168,28 +162,24 @@ fn walk_mod_folders(
         let mut current_path = entry.path().to_path_buf();
         let filename = current_path.file_name().unwrap_or_default().to_string_lossy().to_string();
 
-        // Fix up a `DISABLED` (missing underscore) prefix before classifying the folder. A dry run
-        // reports what it would do without doing it, so it works from the name already on disk.
+        // Fix up a `DISABLED` (missing underscore) prefix before classifying the folder, so the rest
+        // of the walk works from one spelling.
         if filename.starts_with("DISABLED") && !filename.starts_with(DISABLED_PREFIX) {
             let new_filename = format!("{}{}", DISABLED_PREFIX, filename.strip_prefix("DISABLED").unwrap_or(&filename));
             match current_path.parent() {
                 Some(parent) => {
                     let new_path = parent.join(&new_filename);
-                    if apply_renames {
-                        match fs::rename(&current_path, &new_path) {
-                            Ok(_) => {
-                                current_path = new_path;
-                                renamed += 1;
-                            }
-                            Err(e) => {
-                                eprintln!("[scan] failed to rename '{}': {}", filename, e);
-                                errors += 1;
-                                walker.skip_current_dir();
-                                continue;
-                            }
+                    match fs::rename(&current_path, &new_path) {
+                        Ok(_) => {
+                            current_path = new_path;
+                            renamed += 1;
                         }
-                    } else {
-                        renamed += 1;
+                        Err(e) => {
+                            eprintln!("[scan] failed to rename '{}': {}", filename, e);
+                            errors += 1;
+                            walker.skip_current_dir();
+                            continue;
+                        }
                     }
                 }
                 None => {
@@ -236,72 +226,94 @@ fn walk_mod_folders(
     WalkOutcome { mods, renamed, errors }
 }
 
-/// A folder the next scan would move, and where to.
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PlannedMove {
-    pub from: String,
-    pub to: String,
+/// The folder a mod arrived inside, when that folder is a pack rather than part of the layout.
+///
+/// Read from the mod's own relative path rather than from disk, and read before the placement pass
+/// runs: placement moves each mod up to `agents/<slug>/` or `<category>/`, leaving the folder they
+/// shared behind and empty, so by the end of a scan there is nothing left to notice.
+fn pack_folder_of(folder_name: &str, maps: &DeductionMaps) -> Option<String> {
+    let parent = Path::new(folder_name).parent()?;
+    if parent.as_os_str().is_empty() || is_structural_folder(parent, maps) {
+        return None;
+    }
+    Some(parent.to_string_lossy().replace('\\', "/"))
 }
 
-/// Works out everything a scan would do, and does none of it.
+/// Puts each pack of mods into a group named after the folder they arrived in, and reports how many
+/// mods that took in along with how many attempts failed.
 ///
-/// Reads the same folders, applies the same deduction and the same destination rules as `run_scan`,
-/// then reports rather than writes: no rename, no database row, no folder moved. Worth having because
-/// a scan rewrites the layout of a whole mods library in one pass and nothing undoes it.
-pub fn plan_scan(conn: &Connection, base_mods_path: &Path) -> Result<Vec<PlannedMove>, String> {
-    if !base_mods_path.is_dir() {
-        return Err(format!(
-            "Mods directory path is not a valid directory: {}",
-            base_mods_path.display()
-        ));
-    }
+/// Some mods are a folder of parts rather than one mod — an "Icon Sticker" holding a "Character Menu"
+/// and a "Rect&Circle", each with its own .ini. `resolve_mod_root` refuses to merge those into one mod
+/// deliberately: nothing on disk tells a pack of parts apart from a folder of unrelated alternatives,
+/// and merging the second kind would leave a folder of separate skins sharing a single switch. A group
+/// gives what was wanted without that cost — the parts stay separate mods, gain one toggle between
+/// them, and keep the name of the folder they came in.
+///
+/// A mod already in a group is left alone. That group is an arrangement someone made, by hand or on an
+/// earlier scan, and not this pass's to rewrite. Where the name is already taken the members join that
+/// group rather than a second one of the same name appearing, which is what stops a rescan from
+/// multiplying groups for a pack whose folder is still on disk.
+fn group_packs(
+    conn: &mut Connection,
+    base_mods_path: &Path,
+    packs: HashMap<String, Vec<i64>>,
+) -> (usize, usize) {
+    let mut grouped = 0usize;
+    let mut errors = 0usize;
 
-    let maps = fetch_deduction_maps(conn).map_err(|e| e.to_string())?;
-    let found = walk_mod_folders(base_mods_path, &maps, false, |_, _| {});
+    for (pack_path, mod_ids) in packs {
+        // The last folder in the path is the pack's own name; the rest is only where it happened to sit.
+        let name = pack_path.rsplit('/').next().unwrap_or(&pack_path).to_string();
 
-    let mut planned = Vec::new();
-    for mod_folder in found.mods {
-        let existing: Option<(Option<i64>, Option<i64>, Option<i64>)> = conn
-            .query_row(
-                "SELECT agent_id, category_id, category_item_id FROM mods WHERE folder_name = ?1",
-                params![mod_folder.folder_name],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
+        let free: Vec<i64> = mod_ids
+            .into_iter()
+            .filter(|mod_id| {
+                conn.query_row(
+                    "SELECT COUNT(*) FROM mod_group_members WHERE mod_id = ?1",
+                    params![mod_id],
+                    |row| row.get::<_, i64>(0),
+                )
+                .map(|count| count == 0)
+                .unwrap_or(false)
+            })
+            .collect();
+        if free.is_empty() {
+            continue;
+        }
+
+        let existing: Option<i64> = conn
+            .query_row("SELECT id FROM mod_groups WHERE name = ?1", params![name], |row| row.get(0))
             .ok();
 
-        // Same rule the scan follows: a known mod keeps its assignment unless it has none yet, in
-        // which case deduction gets another go at it.
-        let (agent_id, category_id, category_item_id) = match existing {
-            Some((Some(agent_id), category_id, item_id)) => (Some(agent_id), category_id, item_id),
-            Some((None, category_id, item_id)) => {
-                let deduced = deduce_mod_info(&mod_folder.path, base_mods_path, &maps);
-                if deduced.agent_id.is_some() {
-                    (deduced.agent_id, None, None)
-                } else {
-                    (None, category_id, item_id)
+        match existing {
+            Some(group_id) => {
+                for mod_id in free {
+                    match crate::mod_groups::add_member(conn, base_mods_path, group_id, mod_id) {
+                        Ok(_) => grouped += 1,
+                        Err(e) => {
+                            eprintln!("[scan] failed to add mod {} to group '{}': {}", mod_id, name, e);
+                            errors += 1;
+                        }
+                    }
                 }
             }
+            // create_group's own floor, and the right one: a group of one says nothing the mod does
+            // not already say by itself.
+            None if free.len() < 2 => continue,
             None => {
-                let deduced = deduce_mod_info(&mod_folder.path, base_mods_path, &maps);
-                (deduced.agent_id, deduced.category_id, deduced.category_item_id)
+                let size = free.len();
+                match crate::mod_groups::create_group(conn, base_mods_path, &name, None, &free) {
+                    Ok(_) => grouped += size,
+                    Err(e) => {
+                        eprintln!("[scan] failed to group the mods in '{}': {}", pack_path, e);
+                        errors += 1;
+                    }
+                }
             }
-        };
-
-        let destination = crate::mods::planned_folder_name(
-            conn,
-            &mod_folder.folder_name,
-            agent_id,
-            category_id,
-            category_item_id,
-        )?;
-
-        if destination != mod_folder.folder_name {
-            planned.push(PlannedMove { from: mod_folder.folder_name, to: destination });
         }
     }
 
-    Ok(planned)
+    (grouped, errors)
 }
 
 pub fn run_scan(
@@ -315,7 +327,7 @@ pub fn run_scan(
 
     let maps = fetch_deduction_maps(conn).map_err(|e| e.to_string())?;
 
-    let found = walk_mod_folders(base_mods_path, &maps, true, on_progress);
+    let found = walk_mod_folders(base_mods_path, &maps, on_progress);
     let processed = found.mods.len();
     let renamed = found.renamed;
     let mut errors = found.errors;
@@ -329,6 +341,18 @@ pub fn run_scan(
     // rather than during it, because moving a folder mid-walk can drop it into a directory WalkDir
     // has not reached yet, which would then discover the same mod a second time.
     let mut placements: Vec<(i64, Option<i64>, Option<i64>, Option<i64>)> = Vec::new();
+
+    // How many mods each non-layout folder holds. Counted over the whole walk first, because one mod
+    // in such a folder is a wrapper that resolve_mod_root has already folded into the mod itself,
+    // while two or more make it a pack — and which of the two it is cannot be known until every mod
+    // has been seen.
+    let mut pack_sizes: HashMap<String, usize> = HashMap::new();
+    for mod_folder in &found.mods {
+        if let Some(pack) = pack_folder_of(&mod_folder.folder_name, &maps) {
+            *pack_sizes.entry(pack).or_default() += 1;
+        }
+    }
+    let mut pack_members: HashMap<String, Vec<i64>> = HashMap::new();
 
     for mod_folder in &found.mods {
         let current_path = &mod_folder.path;
@@ -344,7 +368,7 @@ pub fn run_scan(
             )
             .ok();
 
-        match existing {
+        let mod_id = match existing {
             None => {
                 let deduced = deduce_mod_info(current_path, base_mods_path, &maps);
                 let insert_result = conn.execute(
@@ -363,16 +387,19 @@ pub fn run_scan(
                 match insert_result {
                     Ok(_) => {
                         added += 1;
+                        let mod_id = conn.last_insert_rowid();
                         placements.push((
-                            conn.last_insert_rowid(),
+                            mod_id,
                             deduced.agent_id,
                             deduced.category_id,
                             deduced.category_item_id,
                         ));
+                        Some(mod_id)
                     }
                     Err(e) => {
                         eprintln!("[scan] failed to insert mod '{}': {}", clean_relative_path_str, e);
                         errors += 1;
+                        None
                     }
                 }
             }
@@ -387,11 +414,22 @@ pub fn run_scan(
                 } else {
                     placements.push((mod_id, None, category_id, category_item_id));
                 }
+                Some(mod_id)
             }
             // Already mapped. Still queued for placement: its assignment has not changed, but the
             // folder layout may have, and that is exactly what needs correcting on an upgrade.
             Some((mod_id, agent_id, category_id, category_item_id)) => {
                 placements.push((mod_id, agent_id, category_id, category_item_id));
+                Some(mod_id)
+            }
+        };
+
+        // Noted here rather than after the placement pass, which moves every mod out of the folder
+        // they shared. One mod in a folder is a wrapper and already part of the mod; two or more are
+        // a pack, and belong in a group together.
+        if let (Some(mod_id), Some(pack)) = (mod_id, pack_folder_of(&clean_relative_path_str, &maps)) {
+            if pack_sizes.get(&pack).copied().unwrap_or(0) > 1 {
+                pack_members.entry(pack).or_default().push(mod_id);
             }
         }
     }
@@ -418,6 +456,11 @@ pub fn run_scan(
         }
     }
 
+    // After placement, since a group says nothing about where a mod sits on disk, and before the
+    // prune, so a pack's members are still there to be grouped.
+    let (grouped, group_errors) = group_packs(conn, base_mods_path, pack_members);
+    errors += group_errors;
+
     let existing_folder_names: Vec<String> = {
         let mut stmt = conn.prepare("SELECT folder_name FROM mods").map_err(|e| e.to_string())?;
         let rows = stmt.query_map([], |row| row.get(0)).map_err(|e| e.to_string())?;
@@ -434,8 +477,8 @@ pub fn run_scan(
     }
 
     Ok(format!(
-        "Processed {} mod folders.\nAdded {} new mods.\nMapped {} mods to an agent.\nMoved {} folders into place.\nPruned {} missing mods.\nRenamed {} folders.\n{} errors.",
-        processed, added, remapped, moved, pruned, renamed, errors
+        "Processed {} mod folders.\nAdded {} new mods.\nMapped {} mods to an agent.\nMoved {} folders into place.\nGrouped {} mods that arrived together.\nPruned {} missing mods.\nRenamed {} folders.\n{} errors.",
+        processed, added, remapped, moved, grouped, pruned, renamed, errors
     ))
 }
 
@@ -515,96 +558,6 @@ mod tests {
     }
     /// A wrapper folder holding one generically named mod folder: the wrapper is the mod, because it
     /// carries the only name that identifies it.
-    /// The whole value of a preview is that it tells the truth, so this asserts the prediction against
-    /// what the scan then actually does — every move it promised, and no move it did not.
-    #[test]
-    fn the_preview_matches_what_the_scan_does() {
-        let mut conn = setup_test_db();
-        let base = temp_base("preview");
-
-        // A spread of the arrangements the placement rules have to handle: a named wrapper, a legacy
-        // top-level agent folder, a retired category folder, and something with no clue at all.
-        for path in [
-            "Ellen Shining Eridu/skin01",
-            "ellen/PlainSkin",
-            "enemies/RandomReskin",
-            "NoHintsAtAll",
-        ] {
-            let dir = base.join(path);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("mod.ini"), "").unwrap();
-        }
-
-        let predicted = plan_scan(&conn, &base).expect("preview should succeed");
-        assert!(!predicted.is_empty(), "this fixture is meant to need moving");
-
-        let before: Vec<String> = {
-            let mut names: Vec<String> = predicted.iter().map(|m| m.from.clone()).collect();
-            names.sort();
-            names
-        };
-        let mut promised: Vec<(String, String)> =
-            predicted.into_iter().map(|m| (m.from, m.to)).collect();
-        promised.sort();
-
-        run_scan(&mut conn, &base, |_, _| {}).expect("scan should succeed");
-
-        // Every promised destination should now hold the mod, and every promised source should be gone.
-        for (from, to) in &promised {
-            assert!(
-                base.join(to).is_dir() || base.join(to).parent().map(|p| p.is_dir()).unwrap_or(false),
-                "promised destination {to} does not exist"
-            );
-            let landed: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM mods WHERE folder_name = ?1",
-                    params![to],
-                    |row| row.get(0),
-                )
-                .unwrap();
-            assert_eq!(landed, 1, "the scan did not put a mod at the promised {to} (from {from})");
-        }
-
-        for from in &before {
-            let still_there: i64 = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM mods WHERE folder_name = ?1",
-                    params![from],
-                    |row| row.get(0),
-                )
-                .unwrap();
-            assert_eq!(still_there, 0, "{from} was promised a move but is still recorded there");
-        }
-
-        // And nothing moved that the preview did not mention. Note the fixture deliberately includes
-        // a mod that is already in the right place (enemies/RandomReskin, which the Enemies category
-        // claims), so "every mod is at a promised destination" would be the wrong assertion — a
-        // preview promising a move for a mod that needs none would be just as wrong as missing one.
-        let final_names: Vec<String> = {
-            let mut stmt = conn.prepare("SELECT folder_name FROM mods ORDER BY folder_name").unwrap();
-            let rows = stmt.query_map([], |row| row.get(0)).unwrap();
-            let mut v: Vec<String> = rows.collect::<Result<_, _>>().unwrap();
-            v.sort();
-            v
-        };
-        let promised_destinations: Vec<&String> = promised.iter().map(|(_, to)| to).collect();
-        for name in &final_names {
-            let was_predicted = promised_destinations.contains(&name);
-            let stayed_put = !before.contains(name);
-            assert!(
-                was_predicted || stayed_put,
-                "{name} is neither a predicted destination nor a mod that stayed where it was"
-            );
-        }
-        assert_eq!(final_names.len(), 4, "every fixture mod should still be recorded exactly once");
-
-        // Running the preview again on the settled library should promise nothing.
-        let after = plan_scan(&conn, &base).expect("second preview should succeed");
-        assert!(after.is_empty(), "a settled library should have nothing left to move: {after:?}");
-
-        fs::remove_dir_all(&base).ok();
-    }
-
     #[test]
     fn a_named_wrapper_becomes_the_mod() {
         let mut conn = setup_test_db();
@@ -867,6 +820,111 @@ mod tests {
             "the whole wrapper moves under the agent, keeping the name that identifies it"
         );
         assert_ne!(new_folder_name, "misc/SomeAstraFolder");
+
+        fs::remove_dir_all(&base).ok();
+    }
+
+    /// Counts the groups a scan left behind, and the members of the first one.
+    fn group_summary(conn: &Connection) -> (i64, Option<(String, i64)>) {
+        let count: i64 =
+            conn.query_row("SELECT COUNT(*) FROM mod_groups", [], |row| row.get(0)).unwrap();
+        let first = conn
+            .query_row(
+                "SELECT g.name, COUNT(m.mod_id) FROM mod_groups g
+                 LEFT JOIN mod_group_members m ON m.group_id = g.id
+                 GROUP BY g.id ORDER BY g.id LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .ok();
+        (count, first)
+    }
+
+    #[test]
+    fn a_folder_of_several_mods_becomes_a_group() {
+        // "Icon Sticker" holding two mods, each with its own .ini. They stay two mods, because nothing
+        // here says they are one, but they arrived together and get a group so they can be switched
+        // together.
+        let mut conn = setup_test_db();
+        let base = temp_base("pack");
+        for path in ["Icon Sticker/Character Menu", "Icon Sticker/Rect and Circle"] {
+            let dir = base.join(path);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("mod.ini"), "").unwrap();
+        }
+
+        run_scan(&mut conn, &base, |_, _| {}).expect("scan should succeed");
+
+        let mods: i64 = conn.query_row("SELECT COUNT(*) FROM mods", [], |row| row.get(0)).unwrap();
+        assert_eq!(mods, 2, "a pack is still several mods, each toggleable on its own");
+        assert_eq!(
+            group_summary(&conn),
+            (1, Some(("Icon Sticker".to_string(), 2))),
+            "both parts belong to one group named after the folder they came in"
+        );
+
+        fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn a_wrapper_around_a_single_mod_makes_no_group() {
+        // The wrapper is the mod here, so there is nothing to group it with.
+        let mut conn = setup_test_db();
+        let base = temp_base("nopack");
+        let dir = base.join("Astra Shining Eridu").join("skin01");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("mod.ini"), "").unwrap();
+
+        run_scan(&mut conn, &base, |_, _| {}).expect("scan should succeed");
+
+        assert_eq!(group_summary(&conn).0, 0, "one mod is not a pack");
+
+        fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn an_agent_folder_full_of_mods_is_never_grouped() {
+        // The folder that matters most to get right: agents/<slug> holds every mod for that agent, and
+        // they are unrelated to each other. Reading it as a pack would put one switch on all of them.
+        let mut conn = setup_test_db();
+        let base = temp_base("agentfolder");
+        for path in ["agents/ellen/Bassist Ellen", "agents/ellen/Ellen Casual"] {
+            let dir = base.join(path);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("mod.ini"), "").unwrap();
+        }
+
+        run_scan(&mut conn, &base, |_, _| {}).expect("scan should succeed");
+
+        let mods: i64 = conn.query_row("SELECT COUNT(*) FROM mods", [], |row| row.get(0)).unwrap();
+        assert_eq!(mods, 2);
+        assert_eq!(group_summary(&conn).0, 0, "a layout folder is not a pack");
+
+        fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn a_second_scan_does_not_group_a_pack_twice() {
+        // These match nothing, so they are filed under misc keeping the folder they arrived in — which
+        // means the second scan sees the same pack again and has to recognise it as already handled.
+        let mut conn = setup_test_db();
+        let base = temp_base("packagain");
+        for path in ["Icon Sticker/Character Menu", "Icon Sticker/Rect and Circle"] {
+            let dir = base.join(path);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("mod.ini"), "").unwrap();
+        }
+
+        run_scan(&mut conn, &base, |_, _| {}).expect("first scan should succeed");
+        assert!(base.join("misc").join("Icon Sticker").is_dir(), "this fixture needs the folder to survive");
+
+        run_scan(&mut conn, &base, |_, _| {}).expect("second scan should succeed");
+
+        assert_eq!(
+            group_summary(&conn),
+            (1, Some(("Icon Sticker".to_string(), 2))),
+            "the same pack should join the group it already has, not a second one"
+        );
 
         fs::remove_dir_all(&base).ok();
     }

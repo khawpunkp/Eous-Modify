@@ -64,17 +64,6 @@ pub fn analyze_archive(archive_path: String, state: State<DbState>) -> Result<Ar
     archive::analyze(&PathBuf::from(archive_path), &maps)
 }
 
-/// Reports what a scan would move, without moving anything.
-///
-/// A scan rewrites the folder layout of an entire mods library in one pass and nothing undoes it, so
-/// being able to read the list first is worth a command of its own.
-#[tauri::command]
-pub fn preview_scan_moves(state: State<DbState>) -> Result<Vec<scanner::PlannedMove>, String> {
-    let mods_path = get_mods_folder(&state)?;
-    let conn = state.0.lock().map_err(|e| e.to_string())?;
-    scanner::plan_scan(&conn, &mods_path)
-}
-
 #[tauri::command]
 pub fn import_archive(
     request: ImportArchiveRequest,
