@@ -10,7 +10,19 @@ const EMPTY_DETAILS: AgentDetails = {
    rank: '',
    attribute: '',
    speciality: '',
+   factionImage: '',
 };
+
+/**
+ * Where a faction badge's image lives, or null for an agent that has no faction.
+ *
+ * The detail holds the file name itself, the way an agent's own base_image does, so a faction added
+ * to the definitions needs no code change here and nothing has to be kept in step with the contents
+ * of the folder.
+ */
+export function resolveFactionImageSrc(factionImage: string): string | null {
+   return factionImage ? `/images/factions/${factionImage}` : null;
+}
 
 export function parseAgentDetails(details: string | null): AgentDetails {
    if (!details) return { ...EMPTY_DETAILS };
@@ -20,6 +32,7 @@ export function parseAgentDetails(details: string | null): AgentDetails {
          rank: parsed.rank ?? '',
          attribute: parsed.attribute ?? '',
          speciality: parsed.speciality ?? '',
+         factionImage: parsed.factionImage ?? '',
       };
    } catch {
       return { ...EMPTY_DETAILS };

@@ -19,6 +19,13 @@ export interface AgentDetails {
    rank: string;
    attribute: string;
    speciality: string;
+   /**
+    * The faction badge's file name, such as "cunning-hares.png", or empty for an agent with no
+    * faction. A file name rather than a faction's name because the badge is only ever shown as an
+    * image: there is no label to render, so a name would need a lookup table kept in step with the
+    * folder for no gain.
+    */
+   factionImage: string;
 }
 
 export interface AgentInput {

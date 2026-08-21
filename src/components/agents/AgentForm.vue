@@ -15,6 +15,7 @@ import {
    parseAgentDetails,
    RANK_ICONS,
    resolveAgentImageSrc,
+   resolveFactionImageSrc,
    serializeAgentDetails,
    SPECIALITY_ICONS,
 } from '../../utils/agent';
@@ -61,7 +62,16 @@ const name = ref('');
 const baseImage = ref<string | null>(null);
 const aliases = reactive<string[]>([]);
 const aliasInput = ref('');
-const details = reactive<AgentDetails>({ rank: '', attribute: '', speciality: '' });
+// factionImage is here without a field to edit it, and has to be: handleSubmit saves
+// serializeAgentDetails(details), so a detail this object does not carry is dropped the moment the
+// agent is saved. The badge would vanish on edit and reappear on the next launch, when seeding
+// re-applies the definitions.
+const details = reactive<AgentDetails>({
+   rank: '',
+   attribute: '',
+   speciality: '',
+   factionImage: '',
+});
 
 function resetFromAgent() {
    const agent = props.initialAgent;
@@ -91,6 +101,8 @@ const specialityModel = detailModel('speciality');
 const canSubmit = computed(() => /[a-z0-9]/i.test(name.value));
 
 const RANK_DETAIL = { label: 'Rank', value: details.rank, icon: RANK_ICONS[details.rank] };
+
+const factionImageSrc = computed(() => resolveFactionImageSrc(details.factionImage));
 
 /**
  * What the heading shows — the full name where there is one, otherwise whatever is in the name field.
@@ -237,56 +249,74 @@ function handleSubmit() {
             :class="{ 'p-10': !baseImage }"
          />
          <div class="flex flex-1 flex-col items-start gap-4">
-            <VueTypography variant="H1B" as="h2">{{ displayName }}</VueTypography>
-            <div v-if="statRows.length > 0" class="flex flex-wrap gap-2">
-               <div
-                  class="bg-background/50 flex size-10 items-center gap-2 rounded-lg p-1"
-                  v-auto-animate
-               >
-                  <img
-                     v-if="RANK_DETAIL.icon"
-                     :src="RANK_DETAIL.icon"
-                     alt=""
-                     class="object-contain"
-                  />
-                  <VueTypography v-if="RANK_DETAIL.label !== 'Rank'" variant="BodyR" as="span">
-                     {{ RANK_DETAIL.value || '—' }}
-                  </VueTypography>
-               </div>
-               <div
-                  v-for="stat in statRows"
-                  :key="stat.label"
-                  class="bg-background/50 flex items-center gap-2 rounded-lg px-2 py-1"
-                  v-auto-animate
-               >
-                  <img v-if="stat.icon" :src="stat.icon" alt="" class="size-7 object-contain" />
-                  <VueTypography v-if="stat.label !== 'Rank'" variant="BodyR" as="span">
-                     {{ stat.value || '—' }}
-                  </VueTypography>
-               </div>
-            </div>
+            <div class="flex w-full">
+               <div class="flex flex-1 flex-col items-start gap-4">
+                  <VueTypography variant="H1B" as="h2">{{ displayName }}</VueTypography>
+                  <div v-if="statRows.length > 0" class="flex flex-wrap gap-2">
+                     <div
+                        class="bg-background/50 flex size-10 items-center gap-2 rounded-lg p-1"
+                        v-auto-animate
+                     >
+                        <img
+                           v-if="RANK_DETAIL.icon"
+                           :src="RANK_DETAIL.icon"
+                           alt=""
+                           class="object-contain"
+                        />
+                        <VueTypography
+                           v-if="RANK_DETAIL.label !== 'Rank'"
+                           variant="BodyR"
+                           as="span"
+                        >
+                           {{ RANK_DETAIL.value || '—' }}
+                        </VueTypography>
+                     </div>
+                     <div
+                        v-for="stat in statRows"
+                        :key="stat.label"
+                        class="bg-background/50 flex items-center gap-2 rounded-lg px-2 py-1"
+                        v-auto-animate
+                     >
+                        <img
+                           v-if="stat.icon"
+                           :src="stat.icon"
+                           alt=""
+                           class="size-7 object-contain"
+                        />
+                        <VueTypography v-if="stat.label !== 'Rank'" variant="BodyR" as="span">
+                           {{ stat.value || '—' }}
+                        </VueTypography>
+                     </div>
+                  </div>
 
-            <div class="flex flex-col gap-2">
-               <Label>Aliases</Label>
-               <div v-auto-animate class="flex flex-wrap gap-2">
-                  <span
-                     v-for="alias in aliases"
-                     :key="alias"
-                     class="bg-primary/50 rounded-full px-3 py-1 text-sm"
-                  >
-                     {{ alias }}
-                  </span>
-                  <VueTypography
-                     v-if="aliases.length === 0"
-                     variant="CaptionR"
-                     as="span"
-                     class="text-muted-foreground"
-                  >
-                     No aliases yet
-                  </VueTypography>
+                  <div class="flex flex-col gap-2">
+                     <Label>Aliases</Label>
+                     <div v-auto-animate class="flex flex-wrap gap-2">
+                        <span
+                           v-for="alias in aliases"
+                           :key="alias"
+                           class="bg-primary/50 rounded-full px-3 py-1 text-sm"
+                        >
+                           {{ alias }}
+                        </span>
+                        <VueTypography
+                           v-if="aliases.length === 0"
+                           variant="CaptionR"
+                           as="span"
+                           class="text-muted-foreground"
+                        >
+                           No aliases yet
+                        </VueTypography>
+                     </div>
+                  </div>
                </div>
+               <img
+                  v-if="factionImageSrc"
+                  :src="factionImageSrc"
+                  alt=""
+                  class="size-40 self-start object-contain"
+               />
             </div>
-
             <div class="mt-auto flex w-full items-center justify-end gap-4">
                <slot name="actions" />
                <VueButton type="button" class="min-w-32" @click="isEditing = true">
@@ -295,6 +325,10 @@ function handleSubmit() {
                </VueButton>
             </div>
          </div>
+
+         <!-- Third child of the row rather than an absolutely positioned corner: the column beside it
+              is flex-1, so it already pushes this to the right edge, and self-start holds it level
+              with the name. -->
       </div>
 
       <form v-else @submit.prevent="handleSubmit" class="flex gap-6">
