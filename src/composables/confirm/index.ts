@@ -7,6 +7,12 @@ export interface ConfirmOptions {
    confirmLabel?: string;
    /** Styles the confirm button as a dangerous action rather than a neutral one. */
    destructive?: boolean;
+   /**
+    * Drops the cancel button, leaving a message with nothing to decide. For telling the user an
+    * action failed: a mod card has no room of its own to show an error, and a failure that shows
+    * nothing at all reads as nothing having happened.
+    */
+   acknowledgeOnly?: boolean;
 }
 
 interface PendingConfirm extends ConfirmOptions {

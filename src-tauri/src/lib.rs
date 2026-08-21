@@ -95,6 +95,7 @@ pub fn run() {
             commands::mods::toggle_mod_enabled,
             commands::mods::update_mod_info,
             commands::mods::update_mod_category,
+            commands::mods::update_mod_files,
             commands::mods::delete_mod,
             commands::mods::open_mod_folder,
             commands::mods::get_mod_keybinds,

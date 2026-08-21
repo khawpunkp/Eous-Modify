@@ -449,6 +449,124 @@ pub fn import(
     }
 }
 
+/// The one subdirectory `dir` holds, when that is all it holds.
+fn sole_subdirectory(dir: &Path) -> Option<PathBuf> {
+    let mut entries = fs::read_dir(dir).ok()?.filter_map(|entry| entry.ok());
+    let only = entries.next()?;
+    if entries.next().is_some() {
+        return None;
+    }
+    only.file_type().ok()?.is_dir().then(|| only.path())
+}
+
+/// Replaces a mod's files from a file the user picked, and reports how many were written.
+///
+/// What happens depends on what was picked, which is what lets one button cover both jobs without
+/// asking first. An archive is a new version of the mod: its contents replace everything in the mod
+/// folder. Any other file is a patch, copied in over a file of the same name, and nothing else in
+/// the folder is touched.
+///
+/// The row in the database is deliberately left as it stands. Name, author, category, group
+/// membership and the enabled state describe the mod rather than the files inside it, and a new
+/// version of a mod is still that mod. `image_filename` is the exception, since the new files decide
+/// what preview there is to point at.
+pub fn update_files(
+    conn: &Connection,
+    base_mods_path: &Path,
+    mod_id: i64,
+    source_path: &Path,
+) -> Result<usize, String> {
+    if !source_path.is_file() {
+        return Err(format!("File not found: {}", source_path.display()));
+    }
+    let folder_name: String = conn
+        .query_row("SELECT folder_name FROM mods WHERE id = ?1", params![mod_id], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    let mod_dir = crate::mods::current_mod_path(base_mods_path, &folder_name)
+        .ok_or_else(|| "Mod folder not found on disk.".to_string())?;
+
+    let written = if is_archive(source_path) {
+        replace_with_archive(&mod_dir, source_path)?
+    } else {
+        let file_name = source_path
+            .file_name()
+            .ok_or_else(|| "That file has no name to copy it under.".to_string())?;
+        fs::copy(source_path, mod_dir.join(file_name))
+            .map_err(|e| format!("Failed to copy the file into the mod folder: {}", e))?;
+        1
+    };
+
+    let image_filename = crate::mods::saved_preview_filename(&mod_dir).or_else(|| find_preview_image(&mod_dir));
+    conn.execute("UPDATE mods SET image_filename = ?1 WHERE id = ?2", params![image_filename, mod_id])
+        .map_err(|e| e.to_string())?;
+
+    println!("[update] Wrote {} files into '{}'.", written, mod_dir.display());
+    Ok(written)
+}
+
+/// Swaps a mod's folder contents for an archive's, leaving the folder itself — and with it the
+/// folder name, the DISABLED_ prefix and every path recorded in the database — exactly as it was.
+///
+/// The new files are unpacked into a staging folder beside the mod first, so an archive that turns
+/// out to be corrupt or password-protected fails before anything has been lost. Beside the mod
+/// rather than in the system temp folder because the swap itself is two renames, and a rename cannot
+/// cross volumes: a mods folder on a second drive would otherwise force a full copy.
+///
+/// The old folder is held under a temporary name until the new one is in place, which is what makes
+/// a failed swap recoverable rather than a mod that is simply gone. A preview this app saved is
+/// carried across from it, since the user chose that picture for the mod rather than for the version
+/// — but only when the new files brought nothing of that name themselves.
+fn replace_with_archive(mod_dir: &Path, archive_path: &Path) -> Result<usize, String> {
+    let folder_name = mod_dir.file_name().unwrap_or_default().to_string_lossy().to_string();
+    let staging = vacant_dir(&mod_dir.with_file_name(format!(".eous-incoming-{}", folder_name)));
+    fs::create_dir_all(&staging).map_err(|e| format!("Failed to make room for the new files: {}", e))?;
+
+    let staged = extract_archive(archive_path, &staging, Path::new(""), true)
+        .map(|count| count + extract_nested_archives(&staging));
+    let staged = match staged {
+        Ok(0) => {
+            fs::remove_dir_all(&staging).ok();
+            return Err("That archive holds no files.".to_string());
+        }
+        Ok(count) => count,
+        Err(e) => {
+            fs::remove_dir_all(&staging).ok();
+            return Err(e);
+        }
+    };
+
+    // A download is normally one folder wrapping the mod, sometimes two. Moving that wrapper in as it
+    // stands would leave the new version a level below where the old one sat, so the chain of
+    // single-child folders is followed down to the one that actually holds the files.
+    let mut incoming = staging.clone();
+    while let Some(only_child) = sole_subdirectory(&incoming) {
+        incoming = only_child;
+    }
+
+    let previous = vacant_dir(&mod_dir.with_file_name(format!(".eous-previous-{}", folder_name)));
+    if let Err(e) = fs::rename(mod_dir, &previous) {
+        fs::remove_dir_all(&staging).ok();
+        return Err(format!("Failed to set the mod's current files aside: {}", e));
+    }
+    if let Err(e) = fs::rename(&incoming, mod_dir) {
+        // Nothing has been deleted yet, so the mod goes back exactly as it was.
+        fs::rename(&previous, mod_dir).ok();
+        fs::remove_dir_all(&staging).ok();
+        return Err(format!("Failed to move the new files into place: {}", e));
+    }
+
+    if let Some(preview) = crate::mods::saved_preview_filename(&previous) {
+        let destination = mod_dir.join(&preview);
+        if !destination.exists() {
+            fs::copy(previous.join(&preview), destination).ok();
+        }
+    }
+
+    fs::remove_dir_all(&staging).ok();
+    fs::remove_dir_all(&previous).ok();
+    Ok(staged)
+}
+
 fn extract_archive(archive_path: &Path, dest: &Path, prefix_path: &Path, extract_all: bool) -> Result<usize, String> {
     match archive_path.extension().and_then(OsStr::to_str).map(|s| s.to_lowercase()).as_deref() {
         Some("zip") => extract_zip(archive_path, dest, prefix_path, extract_all),
@@ -765,5 +883,119 @@ mod tests {
 
         assert_eq!(extract_nested_archives(&dir), 0);
         assert!(dir.join("body.ini").is_file());
+    }
+
+    /// A mod folder at `<base>/TestMod` holding the given `(name, contents)` files.
+    fn build_mod_folder(files: &[(&str, &[u8])]) -> (PathBuf, String) {
+        let base = temp_dir();
+        let folder_name = "TestMod".to_string();
+        fs::create_dir_all(base.join(&folder_name)).unwrap();
+        for (name, contents) in files {
+            let path = base.join(&folder_name).join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, contents).unwrap();
+        }
+        (base, folder_name)
+    }
+
+    /// A mod row and an in-memory database to hold it, so update_files has something to read.
+    fn db_with_mod(folder_name: &str, image_filename: Option<&str>) -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(crate::db::schema::SCHEMA).unwrap();
+        conn.execute(
+            "INSERT INTO mods (id, name, folder_name, image_filename) VALUES (1, 'Test', ?1, ?2)",
+            params![folder_name, image_filename],
+        )
+        .unwrap();
+        conn
+    }
+
+    #[test]
+    fn an_update_swaps_the_contents_and_keeps_the_folder() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old")]);
+        let mod_dir = base.join(&folder);
+        let source = temp_dir().join("v2.zip");
+        write_zip(&source, &[("new.ini", b"; new")]);
+
+        assert_eq!(replace_with_archive(&mod_dir, &source).unwrap(), 1);
+        assert!(mod_dir.is_dir(), "every path in the database points at this folder, so it has to survive");
+        assert!(mod_dir.join("new.ini").is_file());
+        assert!(!mod_dir.join("old.ini").exists());
+    }
+
+    #[test]
+    fn an_update_steps_past_the_folder_a_download_wraps_itself_in() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old")]);
+        let mod_dir = base.join(&folder);
+        let source = temp_dir().join("v2.zip");
+        write_zip(
+            &source,
+            &[("Astra Shining Eridu/body.ini", b"; new"), ("Astra Shining Eridu/preview.png", b"png")],
+        );
+
+        replace_with_archive(&mod_dir, &source).unwrap();
+        assert!(mod_dir.join("body.ini").is_file(), "the new version belongs where the old one sat");
+        assert!(mod_dir.join("preview.png").is_file());
+    }
+
+    #[test]
+    fn an_update_carries_the_preview_the_user_chose_across() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old"), ("mod_preview.png", b"chosen")]);
+        let mod_dir = base.join(&folder);
+        let source = temp_dir().join("v2.zip");
+        write_zip(&source, &[("body.ini", b"; new")]);
+
+        replace_with_archive(&mod_dir, &source).unwrap();
+        assert_eq!(fs::read_to_string(mod_dir.join("mod_preview.png")).unwrap(), "chosen");
+    }
+
+    #[test]
+    fn an_archive_that_cannot_be_read_leaves_the_mod_as_it_was() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old")]);
+        let mod_dir = base.join(&folder);
+        let source = temp_dir().join("truncated.zip");
+        fs::write(&source, b"not really a zip").unwrap();
+
+        assert!(replace_with_archive(&mod_dir, &source).is_err());
+        assert!(mod_dir.join("old.ini").is_file(), "nothing should be lost to an archive that will not open");
+        assert_eq!(fs::read_dir(&base).unwrap().count(), 1, "and no staging folder should be left behind");
+    }
+
+    #[test]
+    fn an_archive_holding_no_files_leaves_the_mod_as_it_was() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old")]);
+        let mod_dir = base.join(&folder);
+        let source = temp_dir().join("empty.zip");
+        write_zip(&source, &[]);
+
+        assert!(replace_with_archive(&mod_dir, &source).is_err());
+        assert!(mod_dir.join("old.ini").is_file());
+        assert_eq!(fs::read_dir(&base).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn a_loose_file_goes_in_without_touching_anything_else() {
+        let (base, folder) = build_mod_folder(&[("body.ini", b"; original"), ("texture.dds", b"keep")]);
+        let conn = db_with_mod(&folder, None);
+        let patch = temp_dir().join("body.ini");
+        fs::write(&patch, b"; fixed").unwrap();
+
+        assert_eq!(update_files(&conn, &base, 1, &patch).unwrap(), 1);
+        assert_eq!(fs::read_to_string(base.join(&folder).join("body.ini")).unwrap(), "; fixed");
+        assert_eq!(fs::read_to_string(base.join(&folder).join("texture.dds")).unwrap(), "keep");
+    }
+
+    #[test]
+    fn an_update_points_the_mod_at_the_preview_the_new_files_ship() {
+        let (base, folder) = build_mod_folder(&[("old.ini", b"; old")]);
+        let conn = db_with_mod(&folder, Some("gone.png"));
+        let source = temp_dir().join("v2.zip");
+        write_zip(&source, &[("body.ini", b"; new"), ("preview.png", b"png")]);
+
+        update_files(&conn, &base, 1, &source).unwrap();
+
+        let image: Option<String> =
+            conn.query_row("SELECT image_filename FROM mods WHERE id = 1", [], |row| row.get(0)).unwrap();
+        assert_eq!(image.as_deref(), Some("preview.png"));
     }
 }

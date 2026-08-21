@@ -79,6 +79,21 @@ export const useModsStore = defineStore('mods', {
          }
          return updated;
       },
+      /**
+       * Replaces a mod's files from a file the user picked: an archive is a new version of the mod
+       * and takes over its folder, any other file goes in over a file of the same name.
+       */
+      async updateFiles(modId: number, sourcePath: string) {
+         const updated = await invoke<Mod>('update_mod_files', { modId, sourcePath });
+         const index = this.mods.findIndex((m) => m.id === modId);
+         if (index !== -1) this.mods[index] = updated;
+         // Unconditional, unlike `update` above: new files can bring a preview under the same name as
+         // the old one, and nothing on the mod itself would show that the file underneath changed.
+         this.previewVersion[modId] = (this.previewVersion[modId] ?? 0) + 1;
+         // The files 3DMigoto reads are different now, same as after a toggle.
+         await maybeReloadXxmi();
+         return updated;
+      },
       async remove(modId: number) {
          await invoke('delete_mod', { modId });
          this.mods = this.mods.filter((m) => m.id !== modId);

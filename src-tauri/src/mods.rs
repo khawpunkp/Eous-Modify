@@ -227,6 +227,22 @@ fn clear_saved_preview(base_mods_path: &Path, folder_name: &str) -> Option<Strin
     crate::scanner::deduce::find_preview_image(&mod_dir)
 }
 
+/// The preview this app saved for a mod, if it saved one.
+///
+/// `mod_preview.*` is a name only this app writes, which makes it the one image in a mod folder that
+/// belongs to the user rather than to the mod's author — worth telling apart whenever the folder's
+/// contents are about to be replaced.
+pub fn saved_preview_filename(mod_dir: &Path) -> Option<String> {
+    fs::read_dir(mod_dir).ok()?.filter_map(|entry| entry.ok()).find_map(|entry| {
+        let path = entry.path();
+        let is_ours = path
+            .file_stem()
+            .map(|stem| stem.eq_ignore_ascii_case(MOD_PREVIEW_BASENAME))
+            .unwrap_or(false);
+        (is_ours && path.is_file()).then(|| entry.file_name().to_string_lossy().to_string())
+    })
+}
+
 /// Confirms a category item really belongs to the category it is being filed under, and drops it if
 /// not.
 ///

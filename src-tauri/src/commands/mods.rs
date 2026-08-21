@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rusqlite::params;
 use tauri::{AppHandle, State};
@@ -64,6 +64,23 @@ pub fn update_mod_category(
     let mods_path = get_mods_folder(&state)?;
     let conn = state.0.lock().map_err(|e| e.to_string())?;
     mods::update_mod_category(&conn, &mods_path, mod_id, agent_id, category_id, category_item_id)
+}
+
+/// Replaces a mod's files from a file the user picked, and hands back the mod as it now stands.
+///
+/// An archive is treated as a new version of the mod and replaces the folder's contents; any other
+/// file is copied in over a file of the same name. The mod itself keeps its name, category, group and
+/// enabled state either way — see `scanner::archive::update_files`.
+#[tauri::command]
+pub fn update_mod_files(
+    mod_id: i64,
+    source_path: String,
+    state: State<DbState>,
+) -> Result<ModWithState, String> {
+    let mods_path = get_mods_folder(&state)?;
+    let conn = state.0.lock().map_err(|e| e.to_string())?;
+    crate::scanner::archive::update_files(&conn, &mods_path, mod_id, Path::new(&source_path))?;
+    mods::get_mod(&conn, &mods_path, mod_id)
 }
 
 #[tauri::command]

@@ -34,6 +34,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleKeydown));
          </VueTypography>
          <div class="flex items-center justify-end gap-3">
             <VueButton
+               v-if="!pendingConfirm.acknowledgeOnly"
                type="button"
                variant="outlined"
                class="min-w-32"
