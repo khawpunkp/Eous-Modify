@@ -31,6 +31,43 @@ const KEY_LABELS: Record<string, string> = {
    SCROLL: 'Scroll Lock',
    LWIN: 'Windows',
    RWIN: 'Windows',
+   APPS: 'Menu',
+   PAUSE: 'Pause',
+   SNAPSHOT: 'Print Screen',
+   CONTROL: 'Ctrl',
+   LCONTROL: 'Left Ctrl',
+   RCONTROL: 'Right Ctrl',
+   SHIFT: 'Shift',
+   LSHIFT: 'Left Shift',
+   RSHIFT: 'Right Shift',
+   MENU: 'Alt',
+   LMENU: 'Left Alt',
+   RMENU: 'Right Alt',
+   MULTIPLY: 'Numpad *',
+   ADD: 'Numpad +',
+   SUBTRACT: 'Numpad -',
+   DECIMAL: 'Numpad .',
+   DIVIDE: 'Numpad /',
+   // The OEM keys are labelled with the character they print, not their code name: a mod writing
+   // "VK_OEM_6" means the ] key, and "Oem 6" told you nothing about what to press. These are the
+   // US layout's characters — the fallback below has no way to supply them, since the name carries
+   // no hint of the character. The label is display-only and never written back to an ini, so on a
+   // layout that prints something else here the cost is a wrong character on screen, not a wrong
+   // keybind. Reading the live layout instead would mean MapVirtualKeyW(vk, MAPVK_VK_TO_CHAR) on the
+   // Rust side, and a name-to-code table there regardless, as Windows has no API that parses a VK
+   // name.
+   OEM_1: ';',
+   OEM_PLUS: '=',
+   OEM_COMMA: ',',
+   OEM_MINUS: '-',
+   OEM_PERIOD: '.',
+   OEM_2: '/',
+   OEM_3: '`',
+   OEM_4: '[',
+   OEM_5: '\\',
+   OEM_6: ']',
+   OEM_7: "'",
+   // OEM_8 and OEM_102 print different characters on different boards, so they keep the fallback.
 };
 
 for (let i = 1; i <= 24; i++) KEY_LABELS[`F${i}`] = `F${i}`;
