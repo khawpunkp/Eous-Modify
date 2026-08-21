@@ -26,7 +26,16 @@ function toggle() {
    modGroupsStore.toggle(props.group.id);
 }
 
-async function removeMember(modId: number) {
+async function removeMember(modId: number, name: string) {
+   if (
+      !(await confirmAction({
+         title: `Remove "${name}" from the group?`,
+         message: "The mod itself won't be touched.",
+         confirmLabel: 'Remove',
+         destructive: true,
+      }))
+   )
+      return;
    await modGroupsStore.removeMember(props.group.id, modId);
 }
 
@@ -114,7 +123,7 @@ async function disband() {
                type="button"
                class="text-foreground/70 cursor-pointer p-1 hover:opacity-100"
                title="Remove from group"
-               @click="removeMember(member.modId)"
+               @click="removeMember(member.modId, member.name)"
             >
                <PhX :size="16" />
             </button>
