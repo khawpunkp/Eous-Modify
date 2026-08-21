@@ -9,12 +9,20 @@ use rusqlite::{params, Connection};
 use serde::Serialize;
 use sevenz_rust::Password;
 use unrar::Archive as RarArchive;
+use walkdir::WalkDir;
 use zip::ZipArchive;
 
 use super::deduce::{clean_mod_name, find_agent_match, find_category_match, find_preview_image, DeductionMaps};
 
 const PREVIEW_CANDIDATES: &[&str] =
     &["preview.png", "icon.png", "thumbnail.png", "preview.jpg", "icon.jpg", "thumbnail.jpg"];
+
+const ARCHIVE_EXTENSIONS: &[&str] = &["zip", "7z", "rar"];
+
+/// How far an archive inside an archive is followed. Double-wrapped downloads are common — a zip
+/// holding the rar the author actually built — but nothing legitimate goes deeper than a couple of
+/// levels, and a cap is what stops a crafted archive from unpacking itself forever.
+const MAX_NESTED_ARCHIVE_DEPTH: usize = 4;
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -404,6 +412,7 @@ pub fn import(
             return Err(e);
         }
     };
+    let files_extracted = files_extracted + extract_nested_archives(&final_dest_path);
     println!("[import] Extracted {} files to '{}'.", files_extracted, final_dest_path.display());
 
     let image_filename = find_preview_image(&final_dest_path);
@@ -447,6 +456,96 @@ fn extract_archive(archive_path: &Path, dest: &Path, prefix_path: &Path, extract
         Some("rar") => extract_rar(archive_path, dest, prefix_path, extract_all),
         other => Err(format!("Unsupported archive type for extraction: {:?}", other)),
     }
+}
+
+fn is_archive(path: &Path) -> bool {
+    path.extension()
+        .and_then(OsStr::to_str)
+        .map(|ext| ext.to_lowercase())
+        .is_some_and(|ext| ARCHIVE_EXTENSIONS.contains(&ext.as_str()))
+}
+
+/// The first path of this name that nothing occupies yet: `skin01`, then `skin01 (2)`, and so on.
+fn vacant_dir(preferred: &Path) -> PathBuf {
+    if !preferred.exists() {
+        return preferred.to_path_buf();
+    }
+    let name = preferred.file_name().unwrap_or_default().to_string_lossy().to_string();
+    (2..)
+        .map(|n| preferred.with_file_name(format!("{} ({})", name, n)))
+        .find(|candidate| !candidate.exists())
+        .unwrap_or_else(|| preferred.to_path_buf())
+}
+
+/// Unpacks every archive the extraction left behind, then everything those produce, and deletes each
+/// one once it is open. Returns how many files this added.
+///
+/// A mod that arrives as an archive inside an archive used to import as a single unopened file: the
+/// mod folder held a .zip and nothing the game could read.
+///
+/// An archive that is the only one in its folder unpacks into that folder rather than into a
+/// subfolder named after itself. That keeps the mod's own preview.png at the top of the mod folder,
+/// which is the only level `find_preview_image` looks at. Where a folder holds several archives — a
+/// pack of variants — each gets its own subfolder, since flattening them into one place would have
+/// them overwrite each other.
+///
+/// A failure is not fatal. The archive is left packed and the import keeps everything else, because
+/// one password-protected extra is no reason to lose the mod it came with. It is also recorded, so a
+/// later pass does not keep retrying it.
+fn extract_nested_archives(dest: &Path) -> usize {
+    let mut extracted = 0;
+    let mut failed: HashSet<PathBuf> = HashSet::new();
+
+    for _ in 0..MAX_NESTED_ARCHIVE_DEPTH {
+        let archives: Vec<PathBuf> = WalkDir::new(dest)
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .filter(|entry| entry.file_type().is_file() && is_archive(entry.path()))
+            .map(|entry| entry.path().to_path_buf())
+            .filter(|path| !failed.contains(path))
+            .collect();
+        if archives.is_empty() {
+            break;
+        }
+
+        for archive in &archives {
+            let Some(parent) = archive.parent() else { continue };
+            let alone_in_its_folder = archives.iter().filter(|other| other.parent() == Some(parent)).count() == 1;
+
+            let target = if alone_in_its_folder {
+                parent.to_path_buf()
+            } else {
+                vacant_dir(&parent.join(archive.file_stem().unwrap_or_default()))
+            };
+            // Only a folder this call brought into being may be cleaned up after a failure. When the
+            // target is the mod folder itself, deleting it would take the rest of the import with it.
+            let target_is_new = !target.exists();
+
+            if let Err(e) = fs::create_dir_all(&target) {
+                eprintln!("[import] No place to unpack '{}': {}", archive.display(), e);
+                failed.insert(archive.clone());
+                continue;
+            }
+
+            match extract_archive(archive, &target, Path::new(""), true) {
+                Ok(count) => {
+                    extracted += count;
+                    if let Err(e) = fs::remove_file(archive) {
+                        eprintln!("[import] Unpacked '{}' but could not remove it: {}", archive.display(), e);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("[import] Leaving '{}' packed: {}", archive.display(), e);
+                    if target_is_new {
+                        fs::remove_dir_all(&target).ok();
+                    }
+                    failed.insert(archive.clone());
+                }
+            }
+        }
+    }
+
+    extracted
 }
 
 fn extract_zip(archive_path: &Path, dest: &Path, prefix_path: &Path, extract_all: bool) -> Result<usize, String> {
@@ -592,4 +691,79 @@ fn extract_rar(archive_path: &Path, dest: &Path, prefix_path: &Path, extract_all
     }
 
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A fresh, empty directory of its own, so no two tests tread on each other.
+    fn temp_dir() -> PathBuf {
+        use std::sync::atomic::{AtomicU32, Ordering};
+        static COUNTER: AtomicU32 = AtomicU32::new(0);
+        let unique = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir =
+            std::env::temp_dir().join(format!("eous_modify_archive_test_{}_{}", std::process::id(), unique));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Writes a zip at `path` holding each `(internal path, contents)` pair.
+    fn write_zip(path: &Path, files: &[(&str, &[u8])]) {
+        let mut writer = zip::ZipWriter::new(fs::File::create(path).unwrap());
+        for (name, contents) in files {
+            writer.start_file(*name, zip::write::FileOptions::default()).unwrap();
+            writer.write_all(contents).unwrap();
+        }
+        writer.finish().unwrap();
+    }
+
+    #[test]
+    fn an_archive_alone_in_its_folder_unpacks_into_that_folder() {
+        // preview.png has to land at the top of the mod folder: find_preview_image reads one level
+        // only, so unpacking into a subfolder named after the archive loses the mod's picture.
+        let dir = temp_dir();
+        write_zip(&dir.join("inner.zip"), &[("preview.png", b"png"), ("skin/skin.ini", b"; Constants")]);
+
+        assert_eq!(extract_nested_archives(&dir), 2);
+        assert!(dir.join("preview.png").is_file());
+        assert!(dir.join("skin/skin.ini").is_file());
+        assert!(!dir.join("inner.zip").exists(), "the container should be gone once it is open");
+    }
+
+    #[test]
+    fn several_archives_in_one_folder_each_get_their_own() {
+        // Flattening a pack of variants into one folder would have them overwrite each other.
+        let dir = temp_dir();
+        write_zip(&dir.join("red.zip"), &[("body.ini", b"red")]);
+        write_zip(&dir.join("blue.zip"), &[("body.ini", b"blue")]);
+
+        assert_eq!(extract_nested_archives(&dir), 2);
+        assert_eq!(fs::read_to_string(dir.join("red/body.ini")).unwrap(), "red");
+        assert_eq!(fs::read_to_string(dir.join("blue/body.ini")).unwrap(), "blue");
+    }
+
+    #[test]
+    fn an_archive_inside_an_archive_is_followed() {
+        let dir = temp_dir();
+        let staging = temp_dir();
+        write_zip(&staging.join("inner.zip"), &[("deep.ini", b"; Constants")]);
+        let inner = fs::read(staging.join("inner.zip")).unwrap();
+        write_zip(&dir.join("outer.zip"), &[("inner.zip", inner.as_slice())]);
+
+        assert_eq!(extract_nested_archives(&dir), 2);
+        assert!(dir.join("deep.ini").is_file(), "the innermost file should have surfaced");
+        assert!(!dir.join("outer.zip").exists());
+        assert!(!dir.join("inner.zip").exists());
+    }
+
+    #[test]
+    fn a_folder_with_no_archives_is_left_alone() {
+        let dir = temp_dir();
+        fs::write(dir.join("body.ini"), "; Constants").unwrap();
+
+        assert_eq!(extract_nested_archives(&dir), 0);
+        assert!(dir.join("body.ini").is_file());
+    }
 }
