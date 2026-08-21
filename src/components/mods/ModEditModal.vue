@@ -68,15 +68,15 @@ const canMove = computed(() => selectedTarget.value !== currentTarget);
 // with no option to match it — so a mod could be moved out of Other/Misc but never back into it,
 // which became the only way out of a category once four of them were retired.
 const categoryOptions = computed(() => [
-   { label: 'Other/Misc', value: NO_TARGET },
-   ...categoriesStore.categories.map((category) => ({
-      label: `Category: ${category.name}`,
-      value: `category:${category.id}`,
-   })),
    ...agentsStore.agents.map((agent) => ({
-      label: `Character: ${agent.name}`,
+      label: agent.name,
       value: `agent:${agent.id}`,
    })),
+   ...categoriesStore.categories.map((category) => ({
+      label: category.name,
+      value: `category:${category.id}`,
+   })),
+   { label: 'Other/Misc', value: NO_TARGET },
 ]);
 
 onMounted(async () => {
