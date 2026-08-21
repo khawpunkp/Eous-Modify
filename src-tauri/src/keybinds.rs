@@ -4,23 +4,23 @@ use std::path::Path;
 use crate::models::KeybindInfo;
 use crate::mods::find_mod_ini_paths;
 
-/// Parses a single INI file's content for keybinds: looks for a `; Constants` comment marker,
-/// then collects `key = value` lines inside `[Key...]` sections that appear after it. Ports the
-/// old app's `get_ini_keybinds` line-scanning algorithm.
+/// Parses a single INI file's content for keybinds: collects `key = value` lines inside every
+/// `[Key...]` section.
+///
+/// This used to read nothing until it had seen a `; Constants` comment, a rule inherited from the old
+/// app's `get_ini_keybinds`. Measured against a real 174-mod library it never once skipped something
+/// it should have, and cost the keybinds of six files outright — mods that write `[Constants]` as a
+/// section header rather than a comment, and mods that write no such line at all — plus two sections
+/// in a seventh, whose author put those keys above the comment. To 3DMigoto a `[Key...]` section is a
+/// keybind wherever it sits in a file the game has loaded, so its position was never evidence of
+/// anything. A commented-out section reads as `;[KeySwap]`, which does not start with `[`, so
+/// dropping the rule cannot start picking up disabled examples either.
 pub fn parse_keybinds_from_ini(content: &str) -> Vec<KeybindInfo> {
     let mut current_section_title: Option<String> = None;
-    let mut found_constants_tag = false;
     let mut keybinds = Vec::new();
 
     for line in content.lines() {
         let line = line.trim();
-
-        if !found_constants_tag {
-            if line.starts_with(';') && line[1..].trim_start().to_lowercase().contains("constants") {
-                found_constants_tag = true;
-            }
-            continue;
-        }
 
         if line.starts_with('[') && line.ends_with(']') {
             let section_name = line[1..line.len() - 1].trim().to_string();
@@ -73,7 +73,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_keybinds_after_constants_marker() {
+    fn parses_the_key_sections_a_mod_declares() {
         let ini = r#"
 [Mod]
 Name = Test Mod
@@ -103,23 +103,62 @@ $hat_on = 0,1
     }
 
     #[test]
-    fn ignores_key_sections_before_constants_marker() {
+    fn parses_a_mod_that_writes_constants_as_a_section_rather_than_a_comment() {
+        // RabbitFX's shape, and the case that showed the old marker rule was wrong: the keys sit well
+        // below a [Constants] section header, and the file carries no such comment anywhere.
         let ini = r#"
-[KeyBeforeConstants]
+namespace = RabbitFX
+; RabbitFX -Zenless Zone Zero- Version 7.7
+
+[Constants]
+persist global $censor = 0
+
+[KeyCensor]
+key = no_modifiers \
+type = cycle
+$censor = 0,1
+"#;
+        assert_eq!(
+            parse_keybinds_from_ini(ini),
+            vec![KeybindInfo { title: "KeyCensor".to_string(), key: r"no_modifiers \".to_string() }]
+        );
+    }
+
+    #[test]
+    fn parses_a_mod_with_no_constants_line_at_all() {
+        // Several mods put their keys straight at the top of the file. The game reads them, so this
+        // has to as well.
+        let ini = r#"
+[KeySwap_0]
+condition = $active0 == 1
+key = O
+type = cycle
+"#;
+        assert_eq!(
+            parse_keybinds_from_ini(ini),
+            vec![KeybindInfo { title: "KeySwap_0".to_string(), key: "O".to_string() }]
+        );
+    }
+
+    #[test]
+    fn parses_a_key_section_sitting_above_the_constants_comment() {
+        // The reverse of what this used to assert. One real mod declares two keys above its comment
+        // and the rest below it, and the marker rule silently dropped the first two.
+        let ini = r#"
+[KeyBefore]
 key = x
 
 ; Constants
 [KeyAfter]
 key = y
 "#;
-        let keybinds = parse_keybinds_from_ini(ini);
-        assert_eq!(keybinds, vec![KeybindInfo { title: "KeyAfter".to_string(), key: "y".to_string() }]);
-    }
-
-    #[test]
-    fn returns_empty_when_no_constants_marker() {
-        let ini = "[KeySomething]\nkey = z\n";
-        assert!(parse_keybinds_from_ini(ini).is_empty());
+        assert_eq!(
+            parse_keybinds_from_ini(ini),
+            vec![
+                KeybindInfo { title: "KeyBefore".to_string(), key: "x".to_string() },
+                KeybindInfo { title: "KeyAfter".to_string(), key: "y".to_string() },
+            ]
+        );
     }
 
     /// Builds `<base>/<mod>/…` with the given `(relative path, contents)` INI files.
