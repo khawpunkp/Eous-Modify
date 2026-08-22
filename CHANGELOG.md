@@ -7,6 +7,29 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
 
+## 0.0.7
+
+Added
+
+- Mods are filed into folders of their own category the next time you scan.
+  Your existing folders are moved for you.
+- Mods that arrive together in one folder are put into a group.
+- Agents show the faction they belong to.
+- Confirmations popup.
+
+Changed
+
+- Importing a mod takes you to the page it landed on, and the list updates on
+  its own.
+
+Fixed
+
+- An archive inside an imported archive was never unpacked, leaving a file in
+  the mod folder that the game could not read.
+- Keybinds on punctuation keys showed a code name instead of the key.
+- Some mods showed no keybinds at all.
+- A mod could not be moved back into Other/Misc.
+
 ## 0.0.6
 
 Added
