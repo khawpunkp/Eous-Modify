@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
-import {
-   PhPencilSimple,
-   PhArrowsClockwise,
-   PhFolderOpen,
-   PhKeyboard,
-   PhTrash,
-} from '@phosphor-icons/vue';
-import { confirmAction } from '@/composables/confirm';
+import { PhPencilSimple, PhFolderOpen, PhKeyboard, PhTrash } from '@phosphor-icons/vue';
 import VueCard from '@/components/ui/card/VueCard.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import PreviewImage from './PreviewImage.vue';
@@ -70,54 +62,6 @@ function toggle() {
 function openFolder() {
    modsStore.openFolder(props.mod.id);
 }
-
-const ARCHIVE_EXTENSIONS = ['zip', '7z', 'rar'];
-
-/**
- * Picks a file and puts it into this mod: an archive is a new version and takes over the whole
- * folder, anything else goes in over a file of the same name.
- *
- * The picker deliberately carries no extension filter. A loose file could be any of the dozen things
- * a mod is made of, so any list would be a guess that hides whatever the user actually came for.
- * Which of the two happens is the backend's decision — the check here only chooses how to word the
- * question.
- */
-async function updateFiles() {
-   const path = await open({ multiple: false });
-   if (typeof path !== 'string') return;
-
-   const fileName = path.slice(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')) + 1);
-   const isArchive = ARCHIVE_EXTENSIONS.includes(fileName.split('.').pop()?.toLowerCase() ?? '');
-
-   const confirmed = await confirmAction(
-      isArchive
-         ? {
-              title: `Update "${props.mod.name}" from ${fileName}?`,
-              message:
-                 'Everything in the mod folder is replaced by what the archive holds. The mod keeps its name, category, group and its own preview picture.',
-              confirmLabel: 'Update',
-              destructive: true,
-           }
-         : {
-              title: `Put ${fileName} into "${props.mod.name}"?`,
-              message:
-                 'A file of that name already in the mod folder is overwritten. Nothing else is touched.',
-              confirmLabel: 'Add file',
-           },
-   );
-   if (!confirmed) return;
-
-   try {
-      await modsStore.updateFiles(props.mod.id, path);
-   } catch (e) {
-      await confirmAction({
-         title: 'Update failed',
-         message: String(e),
-         confirmLabel: 'OK',
-         acknowledgeOnly: true,
-      });
-   }
-}
 </script>
 
 <template>
@@ -161,14 +105,6 @@ async function updateFiles() {
             @click="emit('edit', mod)"
          >
             <PhPencilSimple :size="20" weight="fill" />
-         </button>
-         <button
-            type="button"
-            class="text-foreground cursor-pointer p-1 opacity-70 transition-all hover:opacity-100"
-            title="Update files"
-            @click="updateFiles"
-         >
-            <PhArrowsClockwise :size="20" weight="fill" />
          </button>
          <button
             type="button"
