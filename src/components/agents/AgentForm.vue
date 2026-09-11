@@ -40,6 +40,7 @@ const ATTRIBUTE_OPTIONS = [
    'Frost',
    'Ether',
    'Physical',
+   'Wind',
    'AuricInk',
    'HonedEdge',
    'Lumiflux',
