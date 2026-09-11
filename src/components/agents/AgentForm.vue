@@ -44,7 +44,15 @@ const ATTRIBUTE_OPTIONS = [
    'HonedEdge',
    'Lumiflux',
 ];
-const SPECIALITY_OPTIONS = ['Attack', 'Stun', 'Anomaly', 'Support', 'Defense', 'Rupture'];
+const SPECIALITY_OPTIONS = [
+   'Attack',
+   'Stun',
+   'Anomaly',
+   'Support',
+   'Defense',
+   'Rupture',
+   'Armorer',
+];
 
 const toSelectOptions = (opts: string[]) => opts.map((opt) => ({ label: opt, value: opt }));
 const rankSelectOptions = toSelectOptions(RANK_OPTIONS);

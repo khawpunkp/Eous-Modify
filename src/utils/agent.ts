@@ -79,4 +79,5 @@ export const SPECIALITY_ICONS: Record<string, string> = {
    Support: '/images/filters/support.png',
    Defense: '/images/filters/defense.png',
    Rupture: '/images/filters/rupture.png',
+   Armorer: '/images/filters/armorer.png',
 };

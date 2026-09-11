@@ -63,7 +63,9 @@ entities = [
     { name = "Velina", full_name = "Velina Airgid", slug = "velina", details = '{"rank": "S", "attribute": "Wind", "speciality": "Anomaly", "factionImage": "external-strategy-department.png"}', base_image = "velina.png", aliases = ["velina"] },
     { name = "Norma", full_name = "Norma Hollowell", slug = "norma", details = '{"rank": "S", "attribute": "Fire", "speciality": "Stun", "factionImage": "external-strategy-department.png"}', base_image = "norma.png", aliases = ["norma"] },
     { name = "Remielle", full_name = "Remielle Dan", slug = "remielle", details = '{"rank": "S", "attribute": "Lumiflux", "speciality": "Anomaly", "factionImage": "covenant-of-dayat.png"}', base_image = "remielle.png", aliases = ["remielle"] },
-    { name = "Sigrid", full_name = "Sigrid de L'Azur", slug = "sigrid", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack", "factionImage": "airspace-patrol-department.png"}', base_image = "sigrid.png", aliases = ["sigrid"] }
+    { name = "Sigrid", full_name = "Sigrid de L'Azur", slug = "sigrid", details = '{"rank": "S", "attribute": "Ice", "speciality": "Attack", "factionImage": "airspace-patrol-department.png"}', base_image = "sigrid.png", aliases = ["sigrid"] },
+    { name = "Claret", full_name = "Claret Flint", slug = "claret", details = '{"rank": "S", "attribute": "Electric", "speciality": "Armorer", "factionImage": "flint-workshop.png"}', base_image = "claret.png", aliases = ["claret"] },
+    { name = "Roxy", full_name = "Roxy Ifrita Pryce", slug = "roxy", details = '{"rank": "S", "attribute": "Wind", "speciality": "Stun", "factionImage": "flint-workshop.png"}', base_image = "roxy.png", aliases = ["roxy"] }
 ]
 
 # ===================
