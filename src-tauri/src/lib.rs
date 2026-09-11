@@ -55,10 +55,21 @@ pub fn run() {
             // shown. Declining the prompt is not an error: this copy carries on as it is, and
             // Settings offers the restart again. Immediate mode is deliberately excluded: needing
             // no elevation is the whole reason someone picks it.
-            if commands::reload::auto_reload_enabled(&conn)
+            let wants_elevation = commands::reload::auto_reload_enabled(&conn)
                 && commands::reload::reload_method(&conn) == commands::reload::ReloadMethod::Deferred
-                && !commands::elevation::running_as_admin()
-            {
+                && !commands::elevation::running_as_admin();
+
+            // Never under `tauri dev`. The elevated copy is not the process cargo launched, so this
+            // one exiting reads to the CLI as the app closing, and it takes the dev server down with
+            // it — leaving the new window pointed at a devUrl that no longer answers. Said out loud
+            // rather than skipped quietly, because a deferred reload that silently does nothing in
+            // dev looks like a different bug. `is_dev()` is false in anything `tauri build`
+            // produces, so a shipped build still elevates exactly as before.
+            if wants_elevation && tauri::is_dev() {
+                eprintln!(
+                    "[elevation] dev build, staying unelevated; deferred reload will not reach the game"
+                );
+            } else if wants_elevation {
                 match commands::elevation::restart_elevated() {
                     // Abrupt on purpose. Seeding hasn't run and nothing has been written, so there
                     // is nothing to unwind — and the elevated copy is already on its way, which is
