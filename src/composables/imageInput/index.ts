@@ -88,6 +88,7 @@ export function useImageInput(onImage: (dataUrl: string) => void) {
    const errorMessage = ref<string | null>(null);
    const token = Symbol('image-drop-target');
    let unlisten: UnlistenFn | null = null;
+   let dragHoldsImage = true;
    let dismissTimer: ReturnType<typeof setTimeout> | null = null;
 
    const isActive = () => targets[targets.length - 1] === token;
@@ -115,12 +116,22 @@ export function useImageInput(onImage: (dataUrl: string) => void) {
       unlisten = await getCurrentWebview().onDragDropEvent(async (event) => {
          if (!isActive()) return;
 
+         // `enter` is the only phase carrying the paths, so what the drag holds is settled once,
+         // on the way in, and `over` just repeats the verdict. Assumed true until an `enter` says
+         // otherwise, so a platform that never sends one still highlights exactly as before.
+         if (event.payload.type === 'enter') {
+            dragHoldsImage = event.payload.paths.some(isImagePath);
+            isDraggingOver.value = dragHoldsImage;
+            return;
+         }
+
          if (event.payload.type === 'over') {
-            isDraggingOver.value = true;
+            isDraggingOver.value = dragHoldsImage;
             return;
          }
 
          if (event.payload.type === 'leave') {
+            dragHoldsImage = true;
             isDraggingOver.value = false;
             return;
          }
