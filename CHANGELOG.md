@@ -7,6 +7,21 @@ prompt shows. Add the section before tagging — the build fails if a tag has no
 Keep the prose plain. The update prompt renders it as preformatted text, so Markdown headings and
 emphasis show up literally; bullets and blank lines are fine.
 
+## 0.0.8
+
+Added
+
+- Drop a mod archive to import it.
+- Claret and Roxy, and the Armorer speciality.
+
+Changed
+
+- New artwork for Evelyn.
+
+Fixed
+
+- Wind was missing from the attribute list when editing an agent.
+
 ## 0.0.7
 
 Added
