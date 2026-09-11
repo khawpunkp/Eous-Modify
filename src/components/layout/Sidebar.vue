@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { ArchiveAnalysis } from '../../types';
 import {
    PhDetective,
@@ -18,7 +19,10 @@ import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useSettingsStore } from '../../stores/settings';
 import { useUpdaterStore } from '../../stores/updater';
+import { ARCHIVE_EXTENSIONS, isArchivePath } from '../../utils/archive';
 import { CATEGORY_ICONS } from '../../utils/category';
+import { confirmAction } from '@/composables/confirm';
+import { isModalOpen } from '@/composables/modal';
 import ImportModal from '../mods/ImportModal.vue';
 
 const navItems = [
@@ -70,6 +74,7 @@ async function refreshGameRunning() {
    }
 }
 
+let unlistenDrop: UnlistenFn | null = null;
 let unlistenProgress: UnlistenFn | null = null;
 let unlistenComplete: UnlistenFn | null = null;
 let unlistenError: UnlistenFn | null = null;
@@ -83,6 +88,30 @@ onMounted(async () => {
 
    await refreshGameRunning();
    runningPoll = setInterval(refreshGameRunning, 3000);
+
+   // Registered here rather than on a page because Tauri delivers drop events to the window, not to
+   // whatever sits under the cursor, and because the Sidebar already owns the import dialog and stays
+   // mounted for the app's whole life.
+   unlistenDrop = await getCurrentWebview().onDragDropEvent(async (event) => {
+      // A dialog owns the window for as long as it is up. Opening the import dialog behind one would
+      // leave two stacked, with DOM order rather than anyone's intent deciding which is visible —
+      // every dialog here is z-100. The scan result is the same thing without a component of its own.
+      if (isModalOpen.value || showScanResult.value) {
+         isDraggingArchive.value = false;
+         return;
+      }
+
+      // `enter` is the only phase carrying the paths, so whether this drag is a mod is decided once,
+      // on the way in. `over` repeats with no paths and has nothing to add.
+      if (event.payload.type === 'enter') {
+         isDraggingArchive.value = event.payload.paths.some(isArchivePath);
+         return;
+      }
+      if (event.payload.type === 'over') return;
+
+      isDraggingArchive.value = false;
+      if (event.payload.type === 'drop') await handleDroppedPaths(event.payload.paths);
+   });
 
    unlistenProgress = await listen<{ message: string }>('scan-progress', (event) => {
       scanMessage.value = event.payload.message;
@@ -101,6 +130,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
    if (runningPoll) clearInterval(runningPoll);
+   unlistenDrop?.();
    unlistenProgress?.();
    unlistenComplete?.();
    unlistenError?.();
@@ -119,13 +149,22 @@ async function launchGame() {
 }
 
 async function startImport() {
-   importError.value = null;
    const path = await open({
       multiple: false,
-      filters: [{ name: 'Mod archive', extensions: ['zip', '7z', 'rar'] }],
+      filters: [{ name: 'Mod archive', extensions: ARCHIVE_EXTENSIONS }],
    });
    if (typeof path !== 'string') return;
+   await analyzeAndOpen(path);
+}
 
+/**
+ * Reads an archive and opens the import dialog on it.
+ *
+ * Shared by the Import button and by dropping a file on the window, so both routes ask the same
+ * questions, deduce the same destination and report the same failures.
+ */
+async function analyzeAndOpen(path: string) {
+   importError.value = null;
    isAnalyzingImport.value = true;
    try {
       importAnalysis.value = await invoke<ArchiveAnalysis>('analyze_archive', {
@@ -138,6 +177,37 @@ async function startImport() {
    } finally {
       isAnalyzingImport.value = false;
    }
+}
+
+/** True while a drag carrying a mod archive is over the window, which is what the overlay follows. */
+const isDraggingArchive = ref(false);
+
+/**
+ * A mod archive dropped anywhere on the window opens the import dialog, so adding a mod need not
+ * start at a file picker.
+ *
+ * Several at once are refused rather than queued: the dialog asks where one mod should go and what
+ * to call it, and there is no sensible way to answer that for five archives without a queue the user
+ * cannot see the end of.
+ *
+ * A drop with no archive in it is left alone. It is usually an image heading for the mod editor or
+ * an agent, which has its own handler on this same event and reports its own failures.
+ */
+async function handleDroppedPaths(paths: string[]) {
+   const archives = paths.filter(isArchivePath);
+   if (archives.length === 0) return;
+
+   if (archives.length > 1) {
+      await confirmAction({
+         title: 'One mod at a time',
+         message: 'Import reads a single archive. Drop the others one by one.',
+         confirmLabel: 'OK',
+         acknowledgeOnly: true,
+      });
+      return;
+   }
+
+   await analyzeAndOpen(archives[0]);
 }
 
 function closeImport() {
@@ -317,6 +387,16 @@ async function runScan() {
                   Close
                </VueButton>
             </div>
+         </div>
+      </div>
+      <!-- pointer-events-none because the drop is a native event, not a DOM one: nothing here needs
+           to receive the cursor, and blocking it would only interfere with what is underneath. -->
+      <div
+         v-if="isDraggingArchive"
+         class="bg-background/80 pointer-events-none fixed inset-0 z-90 flex items-center justify-center"
+      >
+         <div class="border-primary rounded-lg border-2 border-dashed px-8 py-6">
+            <VueTypography variant="TitleB" as="p">Drop to import this mod</VueTypography>
          </div>
       </div>
    </aside>

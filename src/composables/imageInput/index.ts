@@ -2,6 +2,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { UnlistenFn } from '@tauri-apps/api/event';
+import { isArchivePath } from '@/utils/archive';
 
 /**
  * Both lists mirror `image_format.rs`, which is where the decision actually lives — the backend
@@ -142,7 +143,10 @@ export function useImageInput(onImage: (dataUrl: string) => void) {
          // silently picking the first of five is less surprising than refusing outright.
          const path = event.payload.paths.find(isImagePath);
          if (!path) {
-            fail(FORMAT_NOT_SUPPORTED);
+            // An archive dropped here is not a mistake, it is a mod: the Sidebar takes it off the
+            // same window event and opens the import dialog. Complaining would put "Unsupported file
+            // format" on screen a moment before that dialog appears.
+            if (!event.payload.paths.some(isArchivePath)) fail(FORMAT_NOT_SUPPORTED);
             return;
          }
 

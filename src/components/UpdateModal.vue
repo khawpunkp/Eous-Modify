@@ -3,6 +3,11 @@ import { computed } from 'vue';
 import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useUpdaterStore } from '../stores/updater';
+import { useModalPresence } from '@/composables/modal';
+
+// A dialog on screen owns the window, which is what stops a dropped archive opening a second one
+// behind this.
+useModalPresence();
 
 const emit = defineEmits<{ close: [] }>();
 const updaterStore = useUpdaterStore();

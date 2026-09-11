@@ -8,6 +8,11 @@ import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { useAgentsStore } from '../../stores/agents';
 import { useCategoriesStore } from '../../stores/categories';
 import type { ArchiveAnalysis, ImportArchiveRequest } from '../../types';
+import { useModalPresence } from '@/composables/modal';
+
+// A dialog on screen owns the window, which is what stops a dropped archive opening a second one
+// behind this.
+useModalPresence();
 
 const props = defineProps<{
    archivePath: string;

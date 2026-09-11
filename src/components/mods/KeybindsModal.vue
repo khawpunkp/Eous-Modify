@@ -5,6 +5,11 @@ import VueButton from '@/components/ui/button/VueButton.vue';
 import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import { formatKeybind } from '../../utils/keybind';
 import type { KeybindInfo } from '../../types';
+import { useModalPresence } from '@/composables/modal';
+
+// A dialog on screen owns the window, which is what stops a dropped archive opening a second one
+// behind this.
+useModalPresence();
 
 const props = defineProps<{ modId: number }>();
 const emit = defineEmits<{ close: [] }>();

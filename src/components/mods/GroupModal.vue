@@ -11,6 +11,11 @@ import VueTypography from '@/components/ui/typography/VueTypography.vue';
 import PreviewImage from './PreviewImage.vue';
 import { useModGroupsStore } from '../../stores/modGroups';
 import type { Mod, ModGroup } from '../../types';
+import { useModalPresence } from '@/composables/modal';
+
+// A dialog on screen owns the window, which is what stops a dropped archive opening a second one
+// behind this.
+useModalPresence();
 
 const props = defineProps<{
    /** Edit mode when set; otherwise this creates a new group from `modIds`. */
